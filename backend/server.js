@@ -23,14 +23,15 @@ const server = http.createServer(async (request, response) => {
     try {
         const url = new URL(request.url, `http://${request.headers.host}`);
 
-       if (url.pathname === "/") {
-    sendJson(response, 200, {
-        nombre: "PIAR API",
-        version: "1.0",
-        estado: "Activo"
-    });
-    return;
-}
+        // Route API requests to the existing API handler
+        if (url.pathname.startsWith("/api/")) {
+            await handleApi(request, response, url);
+            return;
+        }
+
+        // Non-API: serve static files from the public/ directory
+        await serveStatic(response, url.pathname);
+        return;
     } catch (error) {
         sendJson(response, 500, { error: "Error interno del servidor", detail: error.message });
     }
@@ -169,8 +170,9 @@ if (request.method === "DELETE" && url.pathname.startsWith("/api/estudiantes/"))
 }
 
 async function serveStatic(response, pathname) {
-    const safePath = pathname === "/" ? "/index.html" : pathname;
-    const filePath = path.normalize(path.join(ROOT, safePath));
+    // Map requests to files under the public/ directory
+    const relPath = pathname === "/" ? path.join("public", "index.html") : path.join("public", pathname.replace(/^\/+/, ""));
+    const filePath = path.normalize(path.join(ROOT, relPath));
 
     if (!filePath.startsWith(ROOT)) {
         response.writeHead(403);
@@ -197,7 +199,8 @@ async function writeDb(data) {
 }
 
 async function readSeedData() {
-    const source = await fs.readFile(path.join(ROOT, "js", "data.js"), "utf8");
+    // When frontend is placed under public/, seed data lives in public/js/data.js
+    const source = await fs.readFile(path.join(ROOT, "public", "js", "data.js"), "utf8");
     const sandbox = { window: {} };
     vm.createContext(sandbox);
     vm.runInContext(source, sandbox);
@@ -218,13 +221,18 @@ async function readDbFromMysql() {
                     return;
                 }
 
-                resolve({
+                // Attempt to load teacher name from frontend seed data (public/js/data.js)
+                readSeedData().then(seed => {
+                    const teacherName = seed?.institution?.teacher || "";
+
+                    resolve({
 
                     /*********************************************************
                      * DATOS DE LA INSTITUCIÃ“N
                      *********************************************************/
                     institution: {
-                        name: "Institucion Educativa Reynaldo Matiz"
+                        name: "Institucion Educativa Reynaldo Matiz",
+                        teacher: teacherName
                     },
 
                     /*********************************************************
@@ -286,6 +294,41 @@ async function readDbFromMysql() {
                         "Lenguaje"
                     ]
                 });
+        }).catch(() => {
+            // Fallback: resolve without teacher if seed cannot be read
+            resolve({
+                institution: {
+                    name: "Institucion Educativa Reynaldo Matiz",
+                },
+                auth: {
+                    validEmail: "guido4574@gmail.com",
+                    validPassword: "IRMA4574"
+                },
+                students: estudiantes,
+                teachers: [],
+                piars: [],
+                reportTypes: [
+                    "Seguimiento individual",
+                    "PIAR institucional"
+                ],
+                discapacidades: [
+                    "Visual",
+                    "Auditiva",
+                    "Fisica",
+                    "Cognitiva"
+                ],
+                grados: [
+                    "6A",
+                    "6B",
+                    "7A",
+                    "7B"
+                ],
+                areas: [
+                    "Matematicas",
+                    "Lenguaje"
+                ]
+            });
+        });
 
             }
         );
