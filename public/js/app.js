@@ -13,7 +13,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function initializeApp() {
     state = await loadState();
-    renderLogin();
+    try {
+        const session = await apiCurrentUser();
+        currentSessionUser = session.user;
+        await hydrateBusinessState();
+        renderApp("dashboard");
+    } catch {
+        renderLogin();
+    }
 }
 
 async function loadState() {
@@ -72,17 +79,6 @@ function renderLogin(mode = "login") {
                     <h2 class="auth-title">${isRegister ? "Crear cuenta" : "Bienvenido"}</h2>
                     <p class="auth-subtitle">${isRegister ? "Registra tu cuenta institucional" : "Inicia sesion para continuar"}</p>
                     ${isRegister ? registerForm() : loginForm()}
-                    <div class="auth-divider"><span>o continua con</span></div>
-                    <div class="social-login">
-                        <button class="social-btn google-btn" onclick="socialLogin('google')" type="button">
-                            <i class="bi bi-google"></i>
-                            Google
-                        </button>
-                        <button class="social-btn outlook-btn" onclick="socialLogin('outlook')" type="button">
-                            <i class="bi bi-microsoft"></i>
-                            Outlook
-                        </button>
-                    </div>
                     <div class="auth-link">
                         ${isRegister ? "Ya tienes cuenta?" : "No tienes cuenta?"}
                         <a href="#" onclick="renderLogin('${isRegister ? "login" : "register"}')">${isRegister ? "Iniciar sesion" : "Registrarse"}</a>
@@ -99,8 +95,8 @@ function renderLogin(mode = "login") {
 function loginForm() {
     return `
         <form onsubmit="login(event)" class="auth-form">
-            <input id="loginEmail" type="email" class="input-modern" placeholder="Correo electronico" value="${state.auth.validEmail}" required>
-            <input id="loginPassword" type="password" class="input-modern" placeholder="Contrasena" value="${state.auth.validPassword}" required>
+            <input id="loginEmail" type="email" class="input-modern" placeholder="Correo electronico" required>
+            <input id="loginPassword" type="password" class="input-modern" placeholder="Contrasena" required>
             <button type="submit" class="btn-modern">Iniciar sesion</button>
         </form>
     `;
@@ -110,90 +106,98 @@ function registerForm() {
     return `
         <form onsubmit="registerUser(event)" class="auth-form">
             <input id="registerName" type="text" class="input-modern" placeholder="Nombre completo" required>
+            <input id="registerLastName" type="text" class="input-modern" placeholder="Apellidos" required>
+            <input id="registerDocument" type="text" class="input-modern" placeholder="Documento" required>
             <input id="registerEmail" type="email" class="input-modern" placeholder="Correo electronico" required>
             <input id="registerPassword" type="password" class="input-modern" placeholder="Contrasena" minlength="6" required>
             <input id="registerConfirm" type="password" class="input-modern" placeholder="Confirmar contrasena" minlength="6" required>
+            <select id="registerRole" class="input-modern">
+                <option value="Docente">Docente</option>
+                <option value="Psicóloga">Psicología</option>
+                <option value="Coordinador">Coordinador</option>
+                <option value="Rector">Rector</option>
+                <option value="Administrador">Administrador</option>
+            </select>
             <button type="submit" class="btn-modern">Crear cuenta</button>
         </form>
     `;
 }
 
-function login(event) {
+async function login(event) {
     event.preventDefault();
     const email = document.getElementById("loginEmail").value.trim();
     const password = document.getElementById("loginPassword").value.trim();
-    const user = getAuthUsers().find(item => item.email.toLowerCase() === email.toLowerCase() && item.password === password);
-
-    if (user || (email === state.auth.validEmail && password === state.auth.validPassword)) {
-        currentSessionUser = user || {
-            name: state.institution.teacher,
-            email: state.auth.validEmail,
-            role: "Administrador",
-            provider: "email"
-        };
+    try {
+        const result = await apiLogin({ correo: email, password });
+        currentSessionUser = result.user;
+        await hydrateBusinessState();
         renderApp("dashboard");
-        return;
+    } catch (error) {
+        showToastMessage(error.message, "warning");
     }
-
-    showToastMessage("Credenciales incorrectas. Revisa correo y contrasena.", "warning");
 }
 
-function registerUser(event) {
+async function registerUser(event) {
     event.preventDefault();
     const name = document.getElementById("registerName").value.trim();
+    const lastName = document.getElementById("registerLastName").value.trim();
+    const documentNumber = document.getElementById("registerDocument").value.trim();
     const email = document.getElementById("registerEmail").value.trim();
     const password = document.getElementById("registerPassword").value.trim();
     const confirm = document.getElementById("registerConfirm").value.trim();
-    const users = getAuthUsers();
+    const role = document.getElementById("registerRole").value;
 
     if (password !== confirm) {
         showToastMessage("Las contrasenas no coinciden.", "warning");
         return;
     }
 
-    if (users.some(user => user.email.toLowerCase() === email.toLowerCase())) {
-        showToastMessage("Ese correo ya esta registrado.", "warning");
-        return;
+    try {
+        const result = await apiRegister({ nombre: name, apellidos: lastName, documento: documentNumber, correo: email, password, rol: role });
+        currentSessionUser = result.user;
+        await hydrateBusinessState();
+        showToastMessage("Cuenta creada correctamente.");
+        renderApp("dashboard");
+    } catch (error) {
+        showToastMessage(error.message, "warning");
     }
-
-    const user = {
-        id: nextId(users),
-        name,
-        email,
-        password,
-        provider: "email",
-        role: "Usuario"
-    };
-
-    users.push(user);
-    saveAuthUsers(users);
-    currentSessionUser = user;
-    showToastMessage("Cuenta creada correctamente.");
-    renderApp("dashboard");
 }
 
-function socialLogin(provider) {
-    const providerName = provider === "google" ? "Google" : "Outlook";
-    const email = provider === "google" ? "usuario.google@demo.com" : "usuario.outlook@demo.com";
-    const users = getAuthUsers();
-    let user = users.find(item => item.email === email);
-
-    if (!user) {
-        user = {
-            id: nextId(users),
-            name: `Usuario ${providerName}`,
-            email,
-            password: "",
-            provider,
-            role: "Usuario"
-        };
-        users.push(user);
-        saveAuthUsers(users);
+async function hydrateBusinessState() {
+    try {
+        const [studentsResult, teachersResult, piarsResult] = await Promise.all([
+            apiGetStudents(),
+            apiGetTeachers(),
+            apiGetPiars()
+        ]);
+        state.students = studentsResult.data || studentsResult;
+        state.teachers = (teachersResult.data || teachersResult).map(teacher => {
+            const parts = String(teacher.nombre || "").trim().split(/\s+/);
+            const middle = Math.ceil(parts.length / 2);
+            return {
+                ...teacher,
+                id: teacher.id_docente,
+                nombres: teacher.nombres || parts.slice(0, middle).join(" "),
+                apellidos: teacher.apellidos || parts.slice(middle).join(" ")
+            };
+        });
+        state.piars = (piarsResult.data || piarsResult).map(piar => ({
+            ...piar,
+            id: piar.id_piar,
+            studentId: piar.id_estudiante,
+            teacherId: null,
+            fechaCreacion: piar.fecha_creacion,
+            fechaRevision: piar.fecha_revision,
+            objetivoGeneral: piar.objetivo_general,
+            informesSalud: piar.informes_salud,
+            observaciones: [],
+            ajustes: []
+        }));
+        apiConnected = true;
+    } catch (error) {
+        apiConnected = false;
+        throw error;
     }
-
-    currentSessionUser = user;
-    showToastMessage(`Acceso de prueba con ${providerName}.`);
-    renderApp("dashboard");
 }
 
 function renderApp(view) {
@@ -235,7 +239,7 @@ function sidebar(active) {
                     `).join("")}
                 </ul>
             </div>
-            <button class="logout-btn" onclick="renderLogin()">
+            <button class="logout-btn" onclick="logout()">
                 <i class="bi bi-box-arrow-left"></i>
                 Cerrar sesion
             </button>
@@ -253,8 +257,8 @@ function navbar(view) {
         settings: ["Configuracion", "Datos institucionales y mantenimiento"]
     };
     const [title, subtitle] = titles[view];
-    const profileName = currentSessionUser?.name || state.institution.teacher;
-    const profileLabel = currentSessionUser?.role || state.institution.name;
+    const profileName = currentSessionUser?.nombre || state.institution.teacher;
+    const profileLabel = currentSessionUser?.rol || state.institution.name;
 
     return `
         <div class="dashboard-navbar">
@@ -276,7 +280,7 @@ function navbar(view) {
                 <div class="profile-dropdown" id="profileDropdown">
                     <button onclick="renderApp('settings')"><i class="bi bi-building"></i> Institucion</button>
                     <button onclick="resetDemoData(event)"><i class="bi bi-arrow-counterclockwise"></i> Restaurar datos</button>
-                    <button onclick="renderLogin()"><i class="bi bi-box-arrow-left"></i> Cerrar sesion</button>
+                    <button onclick="logout()"><i class="bi bi-box-arrow-left"></i> Cerrar sesion</button>
                 </div>
             </div>
         </div>
@@ -639,7 +643,7 @@ function openStudentModal(studentId = null) {
     `);
 }
 
-function saveStudent(event, studentId) {
+async function saveStudent(event, studentId) {
     event.preventDefault();
     const data = formData(event.target);
     const payload = {
@@ -650,13 +654,21 @@ function saveStudent(event, studentId) {
         apoyosRequeridos: splitList(data.apoyosRequeridos)
     };
 
-    if (studentId) {
-        state.students = state.students.map(student => student.id === studentId ? payload : student);
-    } else {
-        state.students.push(payload);
+    try {
+        const result = studentId
+            ? await apiUpdate("students", studentId, payload)
+            : await apiCreate("students", payload);
+        const savedStudent = result.data || result;
+        if (studentId) {
+            state.students = state.students.map(student => student.id === studentId ? { ...student, ...payload, ...savedStudent } : student);
+        } else {
+            state.students.push({ ...payload, ...savedStudent, id: savedStudent.id || savedStudent.id_estudiante });
+        }
+    } catch (error) {
+        showToastMessage(error.message, "warning");
+        return;
     }
 
-    saveState();
     closeModal();
     renderApp("students");
     showToastMessage("Estudiante guardado correctamente.");
@@ -681,17 +693,25 @@ function openTeacherModal(teacherId = null) {
     `);
 }
 
-function saveTeacher(event, teacherId) {
+async function saveTeacher(event, teacherId) {
     event.preventDefault();
     const payload = { ...formData(event.target), id: teacherId || nextId(state.teachers) };
 
-    if (teacherId) {
-        state.teachers = state.teachers.map(teacher => teacher.id === teacherId ? payload : teacher);
-    } else {
-        state.teachers.push(payload);
+    try {
+        const result = teacherId
+            ? await apiUpdate("teachers", teacherId, payload)
+            : await apiCreate("teachers", payload);
+        const savedTeacher = result.data || result;
+        if (teacherId) {
+            state.teachers = state.teachers.map(teacher => teacher.id === teacherId ? { ...teacher, ...payload, ...savedTeacher } : teacher);
+        } else {
+            state.teachers.push({ ...payload, ...savedTeacher, id: savedTeacher.id_docente || savedTeacher.id });
+        }
+    } catch (error) {
+        showToastMessage(error.message, "warning");
+        return;
     }
 
-    saveState();
     closeModal();
     renderApp("teachers");
     showToastMessage("Docente guardado correctamente.");
@@ -732,33 +752,59 @@ function openPIARModal() {
     `);
 }
 
-function savePIAR(event) {
+async function savePIAR(event) {
     event.preventDefault();
     const data = formData(event.target);
-    state.piars.push({
-        id: nextId(state.piars),
-        studentId: Number(data.studentId),
-        teacherId: Number(data.teacherId),
-        fechaCreacion: data.fechaCreacion,
-        fechaRevision: data.fechaRevision,
-        estado: data.estado,
+    const payload = {
+        id_estudiante: Number(data.studentId),
+        id_docente: Number(data.teacherId),
+        es_responsable_principal: true,
+        titulo: `PIAR ${data.periodo}`,
         periodo: data.periodo,
-        objetivoGeneral: data.objetivoGeneral,
+        anio: Number(state.institution.year),
+        estado: data.estado,
+        objetivo_general: data.objetivoGeneral,
         metas: data.metas,
-        informesSalud: data.informesSalud,
+        informes_salud: data.informesSalud,
         proyectos: data.proyectos,
-        ajustes: [{
-            area: data.area,
-            tipo: data.tipo,
-            estrategia: data.estrategia,
-            recursos: data.recursos,
-            responsable: data.responsable,
-            avance: Number(data.avance || 0)
-        }],
-        observaciones: []
-    });
+        fecha_revision: data.fechaRevision,
+        caracterizacion: data.caracterizacion || null,
+        barreras: data.barreras || null,
+        estrategias: data.estrategias || null
+    };
 
-    saveState();
+    payload.ajuste = data.area && data.tipo && data.estrategia ? {
+        area: data.area,
+        tipo: data.tipo,
+        estrategia: data.estrategia,
+        recursos: data.recursos || null,
+        responsable: data.responsable || null,
+        avance: Number(data.avance || 0),
+        estado: "activo"
+    } : null;
+
+    try {
+        const result = await apiCreate("piar", payload);
+        const savedPiar = result.data || result;
+        const detail = await apiGetPiar(savedPiar.id_piar || savedPiar.id);
+        const persistedPiar = detail.data;
+        state.piars.push({
+            ...persistedPiar,
+            id: persistedPiar.id_piar,
+            studentId: persistedPiar.id_estudiante,
+            teacherId: persistedPiar.docentes?.[0]?.id_docente || null,
+            fechaCreacion: persistedPiar.fecha_creacion,
+            fechaRevision: persistedPiar.fecha_revision,
+            objetivoGeneral: persistedPiar.objetivo_general,
+            informesSalud: persistedPiar.informes_salud,
+            ajustes: persistedPiar.ajustes || [],
+            observaciones: persistedPiar.observaciones || []
+        });
+    } catch (error) {
+        showToastMessage(error.message, "warning");
+        return;
+    }
+
     closeModal();
     renderApp("piar");
     showToastMessage("PIAR / PR creado correctamente.");
@@ -786,21 +832,37 @@ function openObservationModal(piarId = null) {
     `);
 }
 
-function saveObservation(event) {
+async function saveObservation(event) {
     event.preventDefault();
     const data = formData(event.target);
     const piar = state.piars.find(item => item.id === Number(data.piarId));
+    const student = piar ? getStudent(piar.studentId) : null;
+    try {
+        await apiCreate("observations", {
+            id_piar: Number(data.piarId),
+            id_estudiante: student?.id || null,
+            fecha: data.fecha,
+            tipo: data.tipo,
+            docente_responsable: data.autor,
+            descripcion: data.nota,
+            avance: Number(data.avance)
+        });
+    } catch (error) {
+        showToastMessage(error.message, "warning");
+        return;
+    }
 
-    piar.observaciones.push({
-        id: nextId(piar.observaciones),
-        fecha: data.fecha,
-        tipo: data.tipo,
-        autor: data.autor,
-        nota: data.nota,
-        avance: Number(data.avance)
-    });
+    if (piar) {
+        piar.observaciones.push({
+            id: nextId(piar.observaciones),
+            fecha: data.fecha,
+            tipo: data.tipo,
+            autor: data.autor,
+            nota: data.nota,
+            avance: Number(data.avance)
+        });
+    }
 
-    saveState();
     closeModal();
     renderApp(currentView);
     showToastMessage("Observacion registrada.");
@@ -1107,28 +1169,13 @@ function toggleProfileMenu() {
     document.getElementById("profileDropdown")?.classList.toggle("show-profile-menu");
 }
 
-function getAuthUsers() {
-    const saved = localStorage.getItem(AUTH_USERS_KEY);
-    if (saved) {
-        return JSON.parse(saved);
+async function logout() {
+    try {
+        await apiLogout();
+    } finally {
+        currentSessionUser = null;
+        renderLogin();
     }
-
-    const users = state.auth.users || [
-        {
-            id: 1,
-            name: state.institution.teacher,
-            email: state.auth.validEmail,
-            password: state.auth.validPassword,
-            provider: "email",
-            role: "Administrador"
-        }
-    ];
-    saveAuthUsers(users);
-    return users;
-}
-
-function saveAuthUsers(users) {
-    localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
 }
 
 function getStudent(id) {

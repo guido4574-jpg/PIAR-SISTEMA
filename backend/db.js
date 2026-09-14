@@ -1,20 +1,25 @@
+require("./config");
+
 const mysql = require("mysql2");
 
-const db = mysql.createConnection({
-    host: "127.0.0.1",
-    user: "root",
-    password: "123456",
-    database: "piar",
-    port: 3306
+const db = mysql.createPool({
+    host: process.env.DB_HOST || "127.0.0.1",
+    user: process.env.DB_USER || "root",
+    password: process.env.DB_PASSWORD || "",
+    database: process.env.DB_NAME || "piar",
+    port: Number(process.env.DB_PORT || 3306),
+    waitForConnections: true,
+    connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
+    queueLimit: 0
 });
 
-db.connect((err) => {
-    if (err) {
-        console.error("Error de conexión:", err);
+db.query("SELECT 1", (error) => {
+    if (error) {
+        console.error("Error de conexión a MySQL:", error.message);
         return;
     }
 
-    console.log("✅ Conectado a MySQL");
+    console.log("Conectado a MySQL");
 });
 
 module.exports = db;

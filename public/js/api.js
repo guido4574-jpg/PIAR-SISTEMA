@@ -9,8 +9,10 @@ function getApiBaseUrl() {
 }
 
 function apiUrl(name) {
-    const endpoint = API_CONFIG.endpoints?.[name] || `/${name}`;
-    return `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+    const [baseName, ...suffix] = name.split("/");
+    const endpoint = API_CONFIG.endpoints?.[baseName] || `/${baseName}`;
+    const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+    return `${API_BASE_URL}${normalizedEndpoint}${suffix.length ? `/${suffix.join("/")}` : ""}`;
 }
 
 function apiHeaders() {
@@ -45,6 +47,92 @@ async function apiGetData() {
     }
 
     return adaptApiData(unwrapApiData(await response.json()));
+}
+
+async function apiRequest(name, method, body) {
+    const response = await fetch(apiUrl(name), {
+        method,
+        credentials: "include",
+        headers: apiHeaders(),
+        ...(body === undefined ? {} : { body: JSON.stringify(body) })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(payload.message || "No se pudo completar la solicitud");
+    }
+    return payload;
+}
+
+function apiRegister(data) {
+    return apiRequest("authRegister", "POST", data);
+}
+
+function apiLogin(data) {
+    return apiRequest("authLogin", "POST", data);
+}
+
+function apiLogout() {
+    return apiRequest("authLogout", "POST");
+}
+
+function apiCurrentUser() {
+    return apiRequest("authMe", "GET");
+}
+
+function apiList(name) {
+    return apiRequest(name, "GET");
+}
+
+function apiCreate(name, data) {
+    return apiRequest(name, "POST", data);
+}
+
+function apiUpdate(name, id, data) {
+    return apiRequest(`${name}/${id}`, "PUT", data);
+}
+
+function apiDelete(name, id) {
+    return apiRequest(`${name}/${id}`, "DELETE");
+}
+
+function apiGetUsers() {
+    return apiList("users");
+}
+
+function apiGetStudents() {
+    return apiList("students");
+}
+
+function apiGetTeachers() {
+    return apiList("teachers");
+}
+
+function apiGetPiars() {
+    return apiList("piar");
+}
+
+function apiGetPiar(id) {
+    return apiRequest(`piar/${id}`, "GET");
+}
+
+function apiGetDiagnostics() {
+    return apiList("diagnostics");
+}
+
+function apiGetFollowUps() {
+    return apiList("followUps");
+}
+
+function apiGetObservations() {
+    return apiList("observations");
+}
+
+function apiGetReports() {
+    return apiList("reports");
+}
+
+function apiGetDashboard() {
+    return apiList("dashboard");
 }
 
 async function apiSaveData(data) {
