@@ -386,6 +386,13 @@ async function handleApi(request, response, url) {
 
         if (sessionUser && request.method === "POST" && url.pathname === `/api/${resource}`) {
             const payload = await readJsonBody(request);
+            if (resource === "diagnosticos") {
+                const validation = await validateDiagnosticPayload(payload);
+                if (validation) {
+                    sendJson(response, validation.status, { ok: false, message: validation.message });
+                    return;
+                }
+            }
             const result = await queryDb(definition.insert, definition.values(payload));
             sendJson(response, 201, { ok: true, data: { id: result.insertId } });
             return;
@@ -424,6 +431,13 @@ async function handleApi(request, response, url) {
             seguimientos: ["fecha", "descripcion", "responsable", "id_estudiante", "id_coordinador", "id_piar", "estado", "acuerdos", "evolucion"],
             observaciones: ["fecha", "descripcion", "docente_responsable", "id_estudiante", "id_docente", "id_piar", "tipo", "avance", "estado", "acuerdos"]
         };
+        if (resource === "diagnosticos") {
+            const validation = await validateDiagnosticPayload(payload, true);
+            if (validation) {
+                sendJson(response, validation.status, { ok: false, message: validation.message });
+                return;
+            }
+        }
         const fields = updateMaps[resource].filter(field => payload[field] !== undefined);
         if (!fields.length) {
             sendJson(response, 400, { ok: false, message: "No hay campos para actualizar" });
@@ -931,6 +945,42 @@ function sendJson(response, status, data, extraHeaders = {}) {
 
 function queryDb(sql, values = []) {
     return db.promise().query(sql, values).then(([rows]) => rows);
+}
+
+async function validateDiagnosticPayload(payload, partial = false) {
+    const requiredFields = ["tipo_diagnostico", "fecha", "descripcion", "id_estudiante", "id_piar"];
+    if (!partial && requiredFields.some(field => payload[field] === undefined || payload[field] === null || payload[field] === "")) {
+        return { status: 400, message: "Tipo, fecha, descripción, estudiante y PIAR son obligatorios" };
+    }
+
+    if (payload.fecha !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(payload.fecha))) {
+        return { status: 400, message: "La fecha del diagnóstico no es válida" };
+    }
+
+    if (payload.id_estudiante !== undefined || payload.id_piar !== undefined) {
+        if (partial && (payload.id_estudiante === undefined || payload.id_piar === undefined)) {
+            return null;
+        }
+        const studentId = Number(payload.id_estudiante);
+        const piarId = Number(payload.id_piar);
+        if (!Number.isInteger(studentId) || !Number.isInteger(piarId) || studentId <= 0 || piarId <= 0) {
+            return { status: 400, message: "Estudiante y PIAR deben ser identificadores válidos" };
+        }
+
+        const relation = await queryDb("SELECT p.id_piar FROM piar p INNER JOIN estudiante e ON e.id_estudiante = p.id_estudiante WHERE p.id_piar = ? AND p.id_estudiante = ?", [piarId, studentId]);
+        if (!relation.length) {
+            return { status: 400, message: "El PIAR no existe o no pertenece al estudiante" };
+        }
+    }
+
+    if (payload.id_psicologa !== undefined && payload.id_psicologa !== null && payload.id_psicologa !== "") {
+        const psychologist = await queryDb("SELECT id_psicologa FROM psicologa WHERE id_psicologa = ?", [Number(payload.id_psicologa)]);
+        if (!psychologist.length) {
+            return { status: 400, message: "La psicóloga indicada no existe" };
+        }
+    }
+
+    return null;
 }
 
 function piarRowToApi(row) {

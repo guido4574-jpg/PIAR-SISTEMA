@@ -119,6 +119,22 @@ function apiGetDiagnostics() {
     return apiList("diagnostics");
 }
 
+function apiGetDiagnostic(id) {
+    return apiRequest(`diagnostics/${id}`, "GET");
+}
+
+function apiCreateDiagnostic(data) {
+    return apiCreate("diagnostics", data);
+}
+
+function apiUpdateDiagnostic(id, data) {
+    return apiUpdate("diagnostics", id, data);
+}
+
+function apiDeleteDiagnostic(id) {
+    return apiDelete("diagnostics", id);
+}
+
 function apiGetFollowUps() {
     return apiList("followUps");
 }

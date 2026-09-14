@@ -181,18 +181,24 @@ async function hydrateBusinessState() {
                 apellidos: teacher.apellidos || parts.slice(middle).join(" ")
             };
         });
-        state.piars = (piarsResult.data || piarsResult).map(piar => ({
-            ...piar,
-            id: piar.id_piar,
-            studentId: piar.id_estudiante,
-            teacherId: null,
-            fechaCreacion: piar.fecha_creacion,
-            fechaRevision: piar.fecha_revision,
-            objetivoGeneral: piar.objetivo_general,
-            informesSalud: piar.informes_salud,
-            observaciones: [],
-            ajustes: []
-        }));
+        const piarRows = piarsResult.data || piarsResult;
+        const piarDetails = await Promise.all(piarRows.map(piar => apiGetPiar(piar.id_piar)));
+        state.piars = piarDetails.map(result => {
+            const piar = result.data;
+            return {
+                ...piar,
+                id: piar.id_piar,
+                studentId: piar.id_estudiante,
+                teacherId: piar.docentes?.[0]?.id_docente || null,
+                fechaCreacion: piar.fecha_creacion,
+                fechaRevision: piar.fecha_revision,
+                objetivoGeneral: piar.objetivo_general,
+                informesSalud: piar.informes_salud,
+                diagnosticos: piar.diagnosticos || [],
+                observaciones: piar.observaciones || [],
+                ajustes: piar.ajustes || []
+            };
+        });
         apiConnected = true;
     } catch (error) {
         apiConnected = false;
@@ -939,6 +945,11 @@ function viewPIAR(piarId) {
                     <p><strong>Avance:</strong> ${ajuste.avance}%</p>
                 </div>
             `).join("")}
+            <div class="section-heading-row">
+                <h3 class="section-title">Diagnósticos</h3>
+                <button class="table-btn" type="button" onclick="openDiagnosticModal(${piar.id})">Nuevo diagnóstico</button>
+            </div>
+            ${diagnosticCards(piar.diagnosticos || [])}
             <h3 class="section-title">Observaciones</h3>
             ${piar.observaciones.map(obs => `
                 <div class="info-card wide-info">
@@ -949,6 +960,74 @@ function viewPIAR(piarId) {
             `).join("") || emptyState("Este PIAR aun no tiene observaciones.")}
         </div>
     `);
+}
+
+function diagnosticCards(diagnostics) {
+    if (!diagnostics.length) {
+        return emptyState("Este PIAR aún no tiene diagnósticos.");
+    }
+
+    return diagnostics.map(diagnostic => `
+        <div class="info-card wide-info">
+            <h4>${diagnostic.tipo_diagnostico} | ${diagnostic.fecha || "Sin fecha"}</h4>
+            <p>${diagnostic.descripcion}</p>
+            <button class="table-btn" type="button" onclick="openDiagnosticModal(${diagnostic.id_piar}, ${diagnostic.id_diagnostico})">Editar</button>
+        </div>
+    `).join("");
+}
+
+function openDiagnosticModal(piarId, diagnosticId = null) {
+    const piar = state.piars.find(item => item.id === Number(piarId));
+    const diagnostic = piar?.diagnosticos?.find(item => item.id_diagnostico === Number(diagnosticId));
+    openModal(diagnostic ? "Editar diagnóstico" : "Nuevo diagnóstico", `
+        <form onsubmit="saveDiagnostic(event, ${piarId}, ${diagnosticId || "null"})" class="modal-form">
+            <input name="tipo_diagnostico" class="input-modern" placeholder="Tipo de diagnóstico" value="${diagnostic?.tipo_diagnostico || ""}" required>
+            <input name="fecha" type="date" class="input-modern" value="${diagnostic?.fecha || today()}" required>
+            <textarea name="descripcion" class="input-modern" placeholder="Descripción del diagnóstico" required>${diagnostic?.descripcion || ""}</textarea>
+            <button class="btn-modern" type="submit">Guardar diagnóstico</button>
+        </form>
+    `);
+}
+
+async function saveDiagnostic(event, piarId, diagnosticId) {
+    event.preventDefault();
+    const data = formData(event.target);
+    const piar = state.piars.find(item => item.id === Number(piarId));
+    if (!piar) {
+        showToastMessage("PIAR no encontrado.", "warning");
+        return;
+    }
+
+    const payload = {
+        tipo_diagnostico: data.tipo_diagnostico,
+        fecha: data.fecha,
+        descripcion: data.descripcion,
+        id_estudiante: piar.id_estudiante || piar.studentId,
+        id_piar: Number(piarId)
+    };
+
+    try {
+        if (diagnosticId) {
+            await apiUpdateDiagnostic(diagnosticId, payload);
+        } else {
+            await apiCreateDiagnostic(payload);
+        }
+        const detail = await apiGetPiar(piarId);
+        const persisted = detail.data;
+        const index = state.piars.findIndex(item => item.id === Number(piarId));
+        state.piars[index] = {
+            ...state.piars[index],
+            ...persisted,
+            id: persisted.id_piar,
+            studentId: persisted.id_estudiante,
+            diagnosticos: persisted.diagnosticos || []
+        };
+        closeModal();
+        viewPIAR(Number(piarId));
+        showToastMessage("Diagnóstico guardado en MySQL.");
+    } catch (error) {
+        showToastMessage(error.message, "warning");
+    }
 }
 
 function generateReport() {
