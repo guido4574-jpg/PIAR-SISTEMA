@@ -2,7 +2,7 @@ window.PIAR_API_CONFIG = {
     mode: "local",
     adapter: "piar",
 
-    baseUrl: "http://localhost:8080",
+    baseUrl: window.location.origin,
 
     token: "",
 
