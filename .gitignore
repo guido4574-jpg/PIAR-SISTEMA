@@ -2,6 +2,26 @@ node_modules/
 .env
 .env.*
 !.env.example
+!.env.test.example
 logs/
 *.log
 coverage/
+piar-test-cookies.txt
+*.zip
+/data/db.json
+/data/*.sqlite
+/data/*.sqlite3
+/sessions/
+*.cookie
+*.pem
+*.p8
+*.key
+
+# Datos locales y respaldos: nunca se versionan
+/data/
+*.sql.gz
+*.dump
+respaldo-*.tar.gz
+
+# Configuración local de herramientas de asistencia (no forma parte de la aplicación)
+/.claude/
