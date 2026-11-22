@@ -50,8 +50,8 @@ resolve({
         name: "Institucion Educativa Reynaldo Matiz"
     },
     auth: {
-        validEmail: "guido4574@gmail.com",
-        validPassword: "IRMA4574"
+        validEmail: "usuario@ejemplo.edu.co",
+        validPassword: "<retirada>"
     },
     students: estudiantes,
     teachers: [],

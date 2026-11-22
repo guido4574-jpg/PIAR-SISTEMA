@@ -1,5 +1,7 @@
 # Documentación Técnica Consolidada PIAR
 
+> **Referencia histórica/académica:** compila documentos de distintas fechas y no representa por sí sola el estado de ejecución actual. Para instalación local, seguridad vigente y resultados comprobados, consultar `README.md`, `MANUAL_TECNICO_PIAR.md` y `VALIDACION_FINAL.md`. El despliegue piloto ya no forma parte del proyecto.
+
 ## Información general
 
 Este documento reúne la documentación técnica generada para el proyecto PIAR en un único archivo Markdown, listo para copiar, descargar o convertir posteriormente a Word.

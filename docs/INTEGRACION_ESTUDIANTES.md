@@ -1,4 +1,6 @@
-﻿# Integracion Backend-Frontend: Modulo Estudiantes
+﻿> **Documento histórico.** El estado vigente está en `docs/ESTADO_FINAL_PROYECTO.md` (2026-11-22) y las decisiones en `docs/DECISIONES_TECNICAS.md`. Este informe se conserva como registro y puede contradecirlos.
+
+# Integracion Backend-Frontend: Modulo Estudiantes
 
 ## Objetivo
 Adaptar el backend para entregar estudiantes con el contrato funcional que consume la SPA oficial, sin modificar la estructura fisica actual de MySQL y sin cambiar URLs existentes.

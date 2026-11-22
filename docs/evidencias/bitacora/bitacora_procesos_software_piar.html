@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bitácora de Procesos de Software | Sistema PIAR</title>
+<style>
+:root{--p:#56318b;--p2:#8060ae;--navy:#263b53;--pale:#eee9f6;--gray:#65717d;--line:#d8dce3}
+*{box-sizing:border-box}body{margin:0;background:#eceef2;color:#263238;font:15px/1.55 Arial,sans-serif}
+.doc{max-width:900px;margin:28px auto;background:white;padding:36px 44px;box-shadow:0 5px 25px #17203318}
+.cover{min-height:900px;border:2px solid var(--p);padding:65px 35px;display:flex;flex-direction:column;justify-content:space-between;text-align:center;position:relative}
+.cover:before{content:"";position:absolute;top:0;left:0;right:0;height:16px;background:linear-gradient(90deg,var(--p),var(--p2),#aa98ca)}
+.brand{color:var(--p);font-weight:bold;letter-spacing:3px}.cover h1{font-size:34px;line-height:1.2;color:var(--navy)}.cover h2{color:var(--p);font-size:21px}.sub{max-width:600px;margin:auto;color:var(--gray)}
+.data{width:86%;margin:30px auto;text-align:left;background:var(--pale);padding:20px 26px;border-left:5px solid var(--p)}.data p{margin:7px 0}
+h2.section{font-size:22px;color:var(--p);border-bottom:2px solid var(--p);padding-bottom:9px;margin:42px 0 18px}
+.intro,.conclusion{text-align:justify}.note{background:#f5f1fa;border-left:4px solid var(--p2);padding:14px 17px;margin:18px 0}
+.entry{margin:30px 0 38px}.entry h3{font-size:18px;color:var(--navy);border-bottom:1px solid #8793a0;padding-bottom:9px}
+.panel{background:#edf0f3;border-left:5px solid var(--p);padding:18px 20px}.field{margin-bottom:15px}.field strong,.quality-title{display:block;font-size:13px;color:#344454;margin-bottom:6px}
+.field p,.field li{margin:5px 0;font-size:14px}.field ol,.field ul{margin:5px 0;padding-left:22px}
+.placeholder{min-height:150px;border:1.5px dashed #aeb5bf;background:#f7f7f8;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#78828c;padding:15px;margin:12px 0 16px;font-size:13px}
+.placeholder b{color:var(--p)}
+ul.quality{list-style:none;padding:0;margin:8px 0}ul.quality li{border-left:3px solid #8a78a7;padding:6px 10px;margin:7px 0;background:#f7f7f9;font-size:13px}
+.chips span{display:inline-block;background:#e5def0;color:#50347b;padding:3px 9px;border-radius:18px;font-size:11px;margin:0 5px 4px 0;font-weight:bold}
+.chips span.ok{background:#e2efe8;color:#1f6043}.chips span.partial{background:#fbefd6;color:#6e4a00}.chips span.pending{background:#f3e1e4;color:#7d2638}
+.small{font-size:12px;color:var(--gray);font-style:italic}.signature{text-align:center;border-top:1px solid var(--line);margin-top:45px;padding-top:18px;color:var(--gray);font-size:13px}
+code{font-family:Consolas,"Courier New",monospace;font-size:12.5px;background:#f1edf8;color:#3f2468;padding:1px 5px;border-radius:3px;overflow-wrap:anywhere}
+figure{margin:12px 0 18px;background:white;border:1px solid var(--line);padding:8px}
+figure img{display:block;width:100%;height:auto}
+figcaption{font-size:12px;color:var(--gray);margin-top:7px;line-height:1.45}figcaption b{color:var(--navy)}
+table.summary{width:100%;border-collapse:collapse;font-size:13px;margin:12px 0}
+table.summary th{background:var(--navy);color:white;text-align:left;padding:8px 9px;font-weight:bold}
+table.summary td{border-bottom:1px solid var(--line);padding:7px 9px;vertical-align:top}
+table.summary tr:nth-child(even) td{background:#f7f5fb}
+.table-wrap{overflow-x:auto}
+@media print{
+  body{background:white}.doc{margin:0;max-width:none;padding:17mm;box-shadow:none}
+  .cover{min-height:255mm;page-break-after:always}
+  .entry{break-before:page}
+  figure,.placeholder,ul.quality li,table.summary tr{break-inside:avoid}
+  figure img{max-height:115mm;width:auto;max-width:100%;margin:0 auto}
+  figure.tall{break-before:page}figure.tall img{max-height:225mm}
+  h2.section,.entry h3,.field strong,.quality-title{break-after:avoid}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+@media(max-width:650px){.doc{margin:0;padding:22px 17px}.cover{min-height:760px;padding:55px 14px}.cover h1{font-size:27px}.data{width:100%;padding:17px}.panel{padding:14px 12px}}
+</style></head><body><main class="doc">
+
+<section class="cover"><div><div class="brand">SISTEMA PIAR</div><h1>BITÁCORA DE PROCESOS DE SOFTWARE</h1><h2>Documentación de funcionalidades implementadas</h2><p class="sub">Registro de procesos de desarrollo, implementación, verificación y calidad del Sistema PIAR — Plan Individual de Ajustes Razonables.</p></div>
+<div class="data"><p><b>Proyecto:</b> Sistema PIAR</p><p><b>Aprendices:</b> Yeisson Fabián Reinoso Rodríguez y Vivian Beatriz Medina Alvarado</p><p><b>Programa:</b> Análisis y Desarrollo de Software</p><p><b>Ficha:</b> 3186583</p><p><b>Institución:</b> Servicio Nacional de Aprendizaje – SENA</p><p><b>Centro:</b> Centro de Diseño y Manufactura de Cuero</p><p><b>Instructor:</b> Luis Alfonso Becerra</p><p><b>Fecha:</b> 15 de agosto de 2026</p></div><div class="small">Evidencia de aprendizaje · Documentación técnica del proyecto</div></section>
+
+<section><h2 class="section">Introducción</h2>
+<div class="intro">
+<p>El Plan Individual de Ajustes Razonables (PIAR) es la herramienta con la que una institución educativa planea, ejecuta y evalúa los apoyos que requiere un estudiante para participar y aprender en igualdad de condiciones. El Sistema PIAR traslada ese proceso a una aplicación web: concentra en un solo lugar los perfiles de estudiantes y docentes, la elaboración del plan, la identificación de barreras, los ajustes razonables con sus evidencias, el seguimiento y la generación de informes, y controla quién puede consultar o modificar cada dato según su rol institucional.</p>
+<p>Esta bitácora registra el proceso de software de diez funcionalidades del sistema. Documentar estos procesos permite conservar la trazabilidad entre lo que el sistema hace, el código que lo implementa y las pruebas que lo respaldan; facilita el mantenimiento y la incorporación de nuevos integrantes al proyecto; y hace visibles las decisiones de calidad —seguridad, fiabilidad, usabilidad y mantenibilidad— que de otra forma quedarían implícitas en el código.</p>
+<p>Cada entrada describe el proceso real, el procedimiento para reproducirlo desde el navegador, los archivos y funciones que lo implementan, la evidencia visual disponible y los aspectos de calidad comprobados. Las diez entradas recorren el ciclo completo de uso: acceso y registro, panel de seguimiento, gestión de estudiantes y docentes, elaboración y consulta del PIAR, ajustes razonables, informes y administración de cuentas.</p>
+</div>
+<div class="note"><b>Alcance:</b> Se documentan únicamente funcionalidades verificadas en el código y en las pruebas disponibles. Cada entrada diferencia lo implementado, lo probado, lo pendiente y lo no verificado.</div>
+<div class="note"><b>Fuentes de verificación.</b>
+<ul style="margin:8px 0 0;padding-left:20px">
+<li><b>Código fuente:</b> se revisaron el frontend (<code>public/</code>) y el servidor (<code>backend/</code>) del repositorio del proyecto.</li>
+<li><b>Pruebas:</b> se ejecutó la suite unitaria con <code>npm run test:unit</code>: <b>264 pruebas aprobadas y ninguna fallida</b>. Las pruebas de integración y de extremo a extremo no se ejecutaron para esta bitácora.</li>
+<li><b>Capturas:</b> se tomaron de la interfaz del sistema con datos de ejemplo, por lo que no contienen información real de estudiantes, docentes ni usuarios. La franja amarilla superior corresponde al modo de demostración, que permite recorrer las pantallas sin conectarse a la base de datos.</li>
+</ul></div>
+
+<h3 style="color:var(--navy);font-size:16px;margin-top:26px">Resumen de estado</h3>
+<div class="table-wrap"><table class="summary">
+<thead><tr><th>N.º</th><th>Funcionalidad</th><th>Implementación</th><th>Pruebas unitarias</th><th>Evidencia visual</th></tr></thead>
+<tbody>
+<tr><td>01</td><td>Inicio de sesión</td><td>Implementada</td><td>Aprobadas</td><td>Completa</td></tr>
+<tr><td>02</td><td>Registro de cuenta docente</td><td>Implementada</td><td>Aprobadas</td><td>Completa</td></tr>
+<tr><td>03</td><td>Dashboard y observaciones</td><td>Implementada</td><td>Aprobadas</td><td>Completa</td></tr>
+<tr><td>04</td><td>Gestión de estudiantes</td><td>Implementada</td><td>Aprobadas</td><td>Completa</td></tr>
+<tr><td>05</td><td>Gestión de docentes</td><td>Implementada</td><td>Aprobadas</td><td>Completa</td></tr>
+<tr><td>06</td><td>Listado y creación de PIAR</td><td>Implementada</td><td>Aprobadas</td><td>Completa</td></tr>
+<tr><td>07</td><td>Documento PIAR y estrategias DUA</td><td>Implementada</td><td>Aprobadas</td><td>Completa</td></tr>
+<tr><td>08</td><td>Barreras, ajustes razonables y evidencias</td><td>Implementada</td><td>Aprobadas</td><td>Parcial</td></tr>
+<tr><td>09</td><td>Generación de reportes</td><td>Implementada</td><td>Aprobadas</td><td>Completa</td></tr>
+<tr><td>10</td><td>Administración de usuarios y solicitudes</td><td>Implementada</td><td>Aprobadas</td><td>Completa</td></tr>
+</tbody></table></div>
+</section>
+
+<section><h2 class="section">Bitácoras de funcionalidades</h2><p class="small">Cada entrada conserva la estructura de la plantilla de referencia: descripción del proceso, procedimiento, archivos relacionados, evidencia visual del flujo o interfaz y aspectos de calidad asegurados.</p>
+
+<!-- ============================ 01 ============================ -->
+<div class="entry"><h3>Entrada de Bitácora 01: Inicio de sesión</h3><div class="chips"><span>Funcionalidad 01</span><span>Autenticación</span><span class="ok">Implementada</span><span class="ok">Evidencia completa</span></div><div class="panel">
+<div class="field"><strong>Descripción del Proceso</strong>
+<p>El usuario institucional ingresa su correo y su contraseña en el formulario de acceso. El navegador envía las credenciales a <code>POST /api/auth/login</code>; el servidor compara la contraseña con el hash bcrypt almacenado y, si la cuenta está activa, crea una sesión y la entrega en una cookie. Las cuentas pendientes de verificación, pendientes de aprobación o rechazadas no pueden crear sesión. Cuando el correo no existe, el servidor realiza igualmente una comparación bcrypt contra un hash ficticio, de modo que el tiempo de respuesta no revela qué correos están registrados.</p>
+<p>Si la cuenta es la del Administrador inicial con contraseña temporal, el sistema obliga a definir una contraseña personal antes de abrir el panel. La pantalla incluye una escena animada decorativa (lámpara y libro) y opciones de acceso con Google, Microsoft y Apple, que aparecen marcadas como «No disponible» mientras el proveedor no esté configurado.</p></div>
+<div class="field"><strong>Procedimiento</strong><ol>
+<li>Abrir la dirección del sistema sin una sesión activa.</li>
+<li>Escribir el correo institucional y la contraseña; el botón «Mostrar» permite revisar lo escrito.</li>
+<li>Pulsar «Iniciar sesión». Si los datos son válidos, el sistema carga la información y abre el Dashboard; si no, muestra el motivo en la zona de estado del formulario.</li>
+</ol></div>
+<div class="field"><strong>Archivos relacionados</strong><p><code>public/index.html</code> · <code>public/js/app.js</code> (<code>renderLogin</code>, <code>loginForm</code>, <code>login</code>, <code>renderInitialPasswordChange</code>, <code>completeInitialPasswordChange</code>, <code>refreshExternalAuthAvailability</code>) · <code>public/js/login-scene.js</code> · <code>public/js/api.js</code> (<code>apiLogin</code>) · <code>public/css/auth.css</code> · <code>backend/auth.js</code> · <code>backend/login-throttle.js</code> · <code>backend/password-policy.js</code></p></div>
+<figure><img src="capturas/01-inicio-sesion.png" alt="Pantalla de inicio de sesión del Sistema PIAR con el formulario de correo y contraseña a la derecha y la escena de la lámpara iluminando un libro abierto a la izquierda"><figcaption><b>Figura 1.</b> Pantalla de inicio de sesión con el formulario de acceso y los enlaces de registro y recuperación de contraseña.</figcaption></figure>
+<div class="quality-title">Aspectos de Calidad Asegurados</div><ul class="quality">
+<li><b>Seguridad:</b> contraseñas con bcrypt de costo 12 (<code>backend/auth.js</code>); comparación contra un hash ficticio para correos inexistentes; cookie de sesión <code>HttpOnly</code> y <code>SameSite=Lax</code>, con <code>Secure</code> en producción; limitación de intentos fallidos por par IP–cuenta, por IP y por cuenta (<code>backend/login-throttle.js</code>); contraseña nueva de 14 caracteres como mínimo y 72 bytes como máximo.</li>
+<li><b>Fiabilidad:</b> <code>login-throttle.test.js</code> (solo cuentan los intentos fallidos y un acceso correcto limpia el contador), <code>auth-registration.test.js</code> (comparación sin recortar espacios, comparación bcrypt ante correos desconocidos, cuentas pendientes o rechazadas sin sesión), <code>auth-session.test.js</code> (una cookie malformada equivale a no tener sesión), <code>initial-password-change.test.js</code> y <code>login-scene.test.js</code>.</li>
+<li><b>Usabilidad:</b> etiquetas visibles y campos obligatorios marcados; acciones secundarias como botones accesibles con teclado; mensajes en una zona <code>aria-live</code>; con movimiento reducido se muestra directamente la escena final.</li>
+<li><b>Mantenibilidad:</b> la escena vive en un módulo independiente (<code>login-scene.js</code>) invocado dentro de <code>try/catch</code>, de modo que un fallo decorativo nunca bloquea el formulario; las reglas de contraseña están centralizadas en <code>password-policy.js</code>.</li></ul>
+<div class="field"><strong>Pruebas / resultado / estado</strong><p>Implementada; pruebas unitarias aprobadas. El acceso con Google, Microsoft y Apple está programado, pero no se probó con un proveedor configurado.</p></div>
+</div></div>
+
+<!-- ============================ 02 ============================ -->
+<div class="entry"><h3>Entrada de Bitácora 02: Registro de cuenta docente</h3><div class="chips"><span>Funcionalidad 02</span><span>Gestión de usuarios</span><span class="ok">Implementada</span><span class="ok">Evidencia completa</span></div><div class="panel">
+<div class="field"><strong>Descripción del Proceso</strong>
+<p>Una persona solicita acceso desde la pestaña «Registrarse» con nombre, apellidos, documento, correo, perfil solicitado y contraseña con confirmación. El registro público solo admite el perfil Docente: el servidor rechaza cualquier otro rol antes de consultar la base de datos, y la interfaz advierte que «elegir un perfil no concede acceso ni permisos». La cuenta se crea en estado de verificación pendiente, con la contraseña cifrada con bcrypt y un token de verificación del que solo se guarda el hash.</p>
+<p>El flujo continúa en tres etapas: el solicitante confirma su correo con el enlace recibido (la cuenta pasa a «pendiente de aprobación»), un Administrador aprueba o rechaza la solicitud (Entrada 10) y solo entonces la cuenta puede iniciar sesión. Si el correo o el documento ya existen, la respuesta es genérica, para no revelar qué datos están registrados.</p></div>
+<div class="field"><strong>Procedimiento</strong><ol>
+<li>En la pantalla de acceso, pulsar la pestaña «Registrarse» o el enlace «Crear una cuenta».</li>
+<li>Diligenciar los campos obligatorios; la contraseña debe tener al menos 14 caracteres y coincidir con su confirmación.</li>
+<li>Pulsar «Solicitar cuenta» y seguir el enlace de verificación enviado al correo.</li>
+</ol></div>
+<div class="field"><strong>Archivos relacionados</strong><p><code>public/js/app.js</code> (<code>renderLogin('register')</code>, <code>registerForm</code>, <code>registerUser</code>, <code>confirmEmailVerification</code>, <code>resendEmailVerification</code>) · <code>public/js/api.js</code> (<code>apiRegister</code>, <code>apiConfirmEmailVerification</code>) · <code>backend/auth.js</code> · <code>backend/email.js</code> · <code>backend/password-policy.js</code> · <code>backend/registration-approval.js</code></p></div>
+<figure><img src="capturas/02-registro-docente.png" alt="Formulario Crear una cuenta con campos de nombre, apellidos, documento, correo, perfil institucional Docente, contraseña y confirmación"><figcaption><b>Figura 2.</b> Formulario de solicitud de cuenta con el perfil Docente.</figcaption></figure>
+<div class="quality-title">Aspectos de Calidad Asegurados</div><ul class="quality">
+<li><b>Seguridad:</b> lista cerrada de roles públicos (solo Docente); el indicador heredado de registro privilegiado no evita la verificación; respuesta genérica ante duplicados; tokens guardados como hash, de un solo uso y con vencimiento; reversión de la cuenta si falla la persistencia del token.</li>
+<li><b>Fiabilidad:</b> <code>auth-registration.test.js</code> (rechazo de roles distintos de Docente, colisiones concurrentes, reversión ante fallos), <code>email-verification.test.js</code> (tokens inválidos, vencidos o reutilizados no activan cuentas; el reenvío responde igual para correos desconocidos y pendientes) y las pruebas de regresión del formulario en <code>login-scene.test.js</code>.</li>
+<li><b>Usabilidad:</b> el formulario explica antes del envío que la cuenta requiere verificación y aprobación; si las contraseñas no coinciden, no se envía nada y se explica el error; los errores del servidor permiten reenviar el formulario.</li>
+<li><b>Mantenibilidad:</b> el registro, la verificación y la aprobación están separados en módulos (<code>auth.js</code>, <code>email.js</code>, <code>registration-approval.js</code>), lo que permite modificar una etapa sin afectar las demás.</li></ul>
+<div class="field"><strong>Pruebas / resultado / estado</strong><p>Implementada; pruebas unitarias aprobadas. La entrega real de correos depende de la configuración del servidor de correo del entorno y no se verificó en esta bitácora.</p></div>
+</div></div>
+
+<!-- ============================ 03 ============================ -->
+<div class="entry"><h3>Entrada de Bitácora 03: Dashboard y observaciones</h3><div class="chips"><span>Funcionalidad 03</span><span>Seguimiento</span><span class="ok">Implementada</span><span class="ok">Evidencia completa</span></div><div class="panel">
+<div class="field"><strong>Descripción del Proceso</strong>
+<p>Después de iniciar sesión, el Dashboard resume el estado institucional con cuatro indicadores (estudiantes, docentes, PIAR activos y observaciones), calculados a partir de los datos que la API entrega según el rol del usuario. Cada indicador es un acceso directo a su módulo. La vista incluye la tabla «Seguimientos recientes», dos gráficas construidas con Chart.js —avance promedio por PIAR (barras) y distribución por necesidad (anillo)— y una tabla de «Alertas de revisión» con acceso al generador de reportes.</p>
+<p>El botón «Nueva observación» abre el formulario de seguimiento con el PIAR, el tipo, la fecha, el porcentaje de avance, la nota y el autor. El servidor valida el registro: rechaza observaciones vacías o sin un PIAR asociado y aplica los permisos de cada rol.</p></div>
+<div class="field"><strong>Procedimiento</strong><ol>
+<li>Iniciar sesión; el Dashboard es la vista inicial (menú «Dashboard»).</li>
+<li>Revisar los indicadores y las gráficas; pulsar un indicador para ir a su módulo.</li>
+<li>Pulsar «Nueva observación», diligenciar el formulario y guardar.</li>
+</ol></div>
+<div class="field"><strong>Archivos relacionados</strong><p><code>public/js/app.js</code> (<code>renderDashboard</code>, <code>statCard</code>, <code>recentObservationsTable</code>, <code>alertsTable</code>, <code>getAverageProgress</code>, <code>loadCharts</code>, <code>openObservationModal</code>, <code>saveObservation</code>) · <code>public/css/dashboard.css</code> · Chart.js 4.5.1 (CDN con verificación de integridad) · <code>backend/pedagogical-validation.js</code> · <code>backend/authorization.js</code></p></div>
+<figure><img src="capturas/03a-dashboard-administrador.png" alt="Dashboard del Administrador con cuatro indicadores, tabla de seguimientos recientes vacía y gráficas de avance promedio y distribución por necesidad"><figcaption><b>Figura 3a.</b> Dashboard del Administrador con los indicadores, el botón «Nueva observación» y las gráficas.</figcaption></figure>
+<figure><img src="capturas/03b-seguimientos-coordinador-diseno-previo.png" alt="Dashboard del rol Coordinador con una observación registrada en la tabla de seguimientos recientes"><figcaption><b>Figura 3b.</b> Tabla «Seguimientos recientes» con una observación registrada, vista del Coordinador (versión anterior de la interfaz).</figcaption></figure>
+<figure><img src="capturas/03c-nueva-observacion.png" alt="Formulario Nueva observación de seguimiento con el PIAR seleccionado, fecha, tipo Seguimiento, autor, avance del 40 % y nota de ejemplo"><figcaption><b>Figura 3c.</b> Formulario «Nueva observación de seguimiento» diligenciado con información de ejemplo.</figcaption></figure>
+<div class="quality-title">Aspectos de Calidad Asegurados</div><ul class="quality">
+<li><b>Seguridad:</b> los indicadores solo cuentan los datos que la API autoriza para el rol; el texto ingresado por los usuarios se muestra escapado (<code>escapeHTML</code>), de modo que un contenido malicioso se presenta como texto inerte; Chart.js se carga con atributo de integridad (SRI).</li>
+<li><b>Fiabilidad:</b> <code>pedagogical-model.test.js</code> (observaciones y seguimientos vacíos o huérfanos se rechazan), <code>security-output.test.js</code> (las observaciones con contenido HTML se muestran como texto inerte) y <code>design-system.test.js</code> (contraste WCAG AA, foco visible y movimiento reducido).</li>
+<li><b>Usabilidad:</b> indicadores con acceso directo a cada módulo; estados vacíos explicativos («Aún no hay observaciones registradas»); la gráfica de avance muestra además el promedio numérico en su título.</li>
+<li><b>Mantenibilidad:</b> las gráficas se destruyen y se recrean en cada visita (<code>loadCharts</code>), lo que evita instancias duplicadas; colores y componentes provienen del sistema de diseño compartido.</li></ul>
+<div class="field"><strong>Pruebas / resultado / estado</strong><p>Implementada; pruebas unitarias aprobadas.</p></div>
+</div></div>
+
+<!-- ============================ 04 ============================ -->
+<div class="entry"><h3>Entrada de Bitácora 04: Gestión de estudiantes</h3><div class="chips"><span>Funcionalidad 04</span><span>Información estudiantil</span><span class="ok">Implementada</span><span class="ok">Evidencia completa</span></div><div class="panel">
+<div class="field"><strong>Descripción del Proceso</strong>
+<p>El módulo «Estudiantes» presenta los perfiles en tarjetas y ofrece un buscador que filtra en el navegador por nombre, documento, grado, condición especial o discapacidad. Los roles Administrador, Rector y Coordinador ven además el botón «Nuevo estudiante», que abre un formulario con datos de identificación (nombres, apellidos, documento, fecha de nacimiento, grado, jornada, estado), contacto (acudiente y teléfono) y caracterización pedagógica (condición especial, discapacidad, contexto, valoración, fortalezas, barreras, apoyos requeridos y actividades en casa). Cada tarjeta permite consultar el perfil completo y, para los roles autorizados, editarlo.</p></div>
+<div class="field"><strong>Procedimiento</strong><ol>
+<li>Iniciar sesión como Administrador, Rector o Coordinador y abrir el menú «Estudiantes».</li>
+<li>Escribir en el buscador para filtrar las tarjetas.</li>
+<li>Pulsar «Nuevo estudiante», diligenciar el formulario y guardar; o abrir una tarjeta para consultar el perfil.</li>
+</ol></div>
+<div class="field"><strong>Archivos relacionados</strong><p><code>public/js/app.js</code> (<code>renderStudents</code>, <code>studentCards</code>, <code>filterStudents</code>, <code>openStudentModal</code>, <code>saveStudent</code>, <code>viewStudent</code>, <code>canManageStudentTeacherProfiles</code>) · <code>public/js/api.js</code> (<code>apiGetStudents</code>, <code>apiCreate</code>, <code>apiUpdate</code>) · <code>backend/authorization.js</code> · <code>backend/student-access.js</code></p></div>
+<figure><img src="capturas/04a-estudiantes.png" alt="Vista Gestión de estudiantes con buscador, botón Nuevo estudiante y una tarjeta de estudiante con botones Ver y Editar"><figcaption><b>Figura 4a.</b> Vista «Gestión de estudiantes» con el buscador, el botón «Nuevo estudiante» y las tarjetas de perfil.</figcaption></figure>
+<figure class="tall"><img src="capturas/04b-nuevo-estudiante.png" alt="Formulario Nuevo estudiante diligenciado con datos de ejemplo: identificación, grado, jornada, estado, acudiente, teléfono y campos de caracterización pedagógica"><figcaption><b>Figura 4b.</b> Formulario «Nuevo estudiante» diligenciado con datos de ejemplo.</figcaption></figure>
+<div class="quality-title">Aspectos de Calidad Asegurados</div><ul class="quality">
+<li><b>Seguridad:</b> solo Administrador, Rector y Coordinador gestionan perfiles, regla aplicada tanto en la interfaz como en el servidor; los datos de estudiantes y de salud se entregan con proyecciones explícitas de columnas; el contenido se muestra escapado.</li>
+<li><b>Fiabilidad:</b> <code>authorization.test.js</code> («solo Admin, Rector y Coordinador gestionan perfiles de estudiantes y docentes») y <code>security-output.test.js</code> (contenido HTML mostrado como texto inerte y proyecciones explícitas en los endpoints de estudiantes y datos de salud).</li>
+<li><b>Usabilidad:</b> búsqueda inmediata sin recargar la página; el botón de creación solo aparece a quien puede usarlo.</li>
+<li><b>Mantenibilidad:</b> el formulario reutiliza el mismo componente para crear y editar (<code>openStudentModal(studentId)</code>) y las operaciones usan los ayudantes genéricos de la API.</li></ul>
+<div class="field"><strong>Pruebas / resultado / estado</strong><p>Implementada; pruebas unitarias aprobadas.</p></div>
+</div></div>
+
+<!-- ============================ 05 ============================ -->
+<div class="entry"><h3>Entrada de Bitácora 05: Gestión de docentes</h3><div class="chips"><span>Funcionalidad 05</span><span>Talento institucional</span><span class="ok">Implementada</span><span class="ok">Evidencia completa</span></div><div class="panel">
+<div class="field"><strong>Descripción del Proceso</strong>
+<p>El módulo «Docentes» lista los perfiles docentes en tarjetas con un buscador por nombre, área o cargo. Los roles Administrador, Rector y Coordinador pueden crear o editar perfiles con nombres, apellidos, documento, correo, teléfono, cargo, área, perfil y estado. El perfil docente se vincula con la cuenta de usuario cuando el Administrador aprueba una solicitud de registro; si la vinculación falla, la aprobación se revierte completa. Este vínculo determina qué PIAR y qué estudiantes puede consultar cada docente.</p></div>
+<div class="field"><strong>Procedimiento</strong><ol>
+<li>Iniciar sesión con un rol de gestión y abrir el menú «Docentes».</li>
+<li>Filtrar con el buscador o pulsar «Nuevo docente» para registrar un perfil.</li>
+<li>Abrir una tarjeta para consultar el detalle del docente.</li>
+</ol></div>
+<div class="field"><strong>Archivos relacionados</strong><p><code>public/js/app.js</code> (<code>renderTeachers</code>, <code>teacherCards</code>, <code>filterTeachers</code>, <code>openTeacherModal</code>, <code>saveTeacher</code>, <code>viewTeacher</code>) · <code>public/js/api.js</code> (<code>apiGetTeachers</code>) · <code>backend/authorization.js</code> · <code>backend/pedagogical-access.js</code> · <code>backend/registration-approval.js</code></p></div>
+<figure><img src="capturas/05-docentes-vista.png" alt="Vista Docentes con buscador por docente, área o cargo, botón Nuevo docente y una tarjeta de docente con botones Ver y Editar"><figcaption><b>Figura 5a.</b> Vista «Docentes» con el buscador, el botón «Nuevo docente» y las tarjetas de perfil.</figcaption></figure>
+<figure><img src="capturas/05-docentes.png" alt="Formulario Nuevo docente diligenciado con nombres, apellidos, documento, cargo, área, correo, teléfono, estado y perfil de ejemplo"><figcaption><b>Figura 5b.</b> Formulario «Nuevo docente» diligenciado con información de ejemplo.</figcaption></figure>
+<div class="quality-title">Aspectos de Calidad Asegurados</div><ul class="quality">
+<li><b>Seguridad:</b> la gestión de perfiles está restringida a roles de gestión; la resolución del perfil docente falla de forma cerrada si el vínculo falta, está inactivo o está duplicado.</li>
+<li><b>Fiabilidad:</b> <code>authorization.test.js</code> (gestión de perfiles y resolución del perfil docente) y <code>registration-approval.test.js</code> (la aprobación falla de forma cerrada ante perfiles duplicados y se revierte si falla la vinculación).</li>
+<li><b>Usabilidad:</b> misma estructura de tarjetas y búsqueda que el módulo de estudiantes, lo que reduce el aprendizaje necesario.</li>
+<li><b>Mantenibilidad:</b> la lógica de acceso docente está aislada en <code>pedagogical-access.js</code> y se reutiliza en los módulos de PIAR, diagnósticos y reportes.</li></ul>
+<div class="field"><strong>Pruebas / resultado / estado</strong><p>Implementada; pruebas unitarias aprobadas.</p></div>
+</div></div>
+
+<!-- ============================ 06 ============================ -->
+<div class="entry"><h3>Entrada de Bitácora 06: Listado y creación de PIAR</h3><div class="chips"><span>Funcionalidad 06</span><span>Plan individual</span><span class="ok">Implementada</span><span class="ok">Evidencia completa</span></div><div class="panel">
+<div class="field"><strong>Descripción del Proceso</strong>
+<p>El módulo «PIAR / PR» muestra cada plan en una tarjeta con el estudiante, el estado, el docente responsable, el periodo, la fecha de revisión y una barra de implementación con el porcentaje de avance, además de los accesos «Ver PIAR» y «Observación». El buscador filtra por estudiante, docente, estado o periodo.</p>
+<p>Administrador, Rector, Coordinador y Docente pueden crear un plan con «Nuevo PIAR / PR». El formulario reúne el estudiante, el docente, el periodo, las fechas, el estado, el objetivo general, las metas, la valoración pedagógica, las barreras, un primer ajuste razonable (área, tipo, estrategia, recursos, responsable, resultado esperado, indicador y fecha de revisión) y los anexos del proceso (informes, proyectos, actividades en recesos, acta de acuerdos, informe anual y entrega pedagógica). Para un Docente, la lista de estudiantes se limita a los que tiene asignados, y el servidor vuelve a comprobar esa asignación.</p></div>
+<div class="field"><strong>Procedimiento</strong><ol>
+<li>Abrir el menú «PIAR / PR».</li>
+<li>Usar el buscador para localizar un plan o pulsar «Nuevo PIAR / PR».</li>
+<li>Diligenciar el formulario y guardar; el nuevo plan aparece en el listado.</li>
+</ol></div>
+<div class="field"><strong>Archivos relacionados</strong><p><code>public/js/app.js</code> (<code>renderPIAR</code>, <code>piarCards</code>, <code>filterPIAR</code>, <code>openPIARModal</code>, <code>savePIAR</code>, <code>canCreatePIAR</code>) · <code>public/js/api.js</code> (<code>apiGetPiars</code>, <code>apiGetPiar</code>) · <code>backend/pedagogical-access.js</code> · <code>backend/pedagogical-validation.js</code> · <code>backend/piar-versioning.js</code></p></div>
+<figure><img src="capturas/06-piar-listado-docente.png" alt="Listado PIAR / PR en la vista Docente con buscador, botón Nuevo PIAR / PR y una tarjeta con estado Activo y barra de implementación al 50 %"><figcaption><b>Figura 6a.</b> Listado de planes del Docente con el buscador, el botón «Nuevo PIAR / PR» y la tarjeta del plan.</figcaption></figure>
+<figure class="tall"><img src="capturas/06b-nuevo-piar.png" alt="Formulario Nuevo PIAR / PR completo: estudiante, docente, fechas, estado, periodo, objetivo general, metas, valoración, barreras, anexos del proceso y sección Ajuste inicial"><figcaption><b>Figura 6b.</b> Formulario «Nuevo PIAR / PR» completo, con los datos del plan y la sección «Ajuste inicial».</figcaption></figure>
+<div class="quality-title">Aspectos de Calidad Asegurados</div><ul class="quality">
+<li><b>Seguridad:</b> el botón de creación coincide con los roles que autoriza el servidor; el responsable del plan debe ser personal institucional activo o un docente activo asignado; la asignación del estudiante se verifica en el servidor.</li>
+<li><b>Fiabilidad:</b> <code>ui-permissions.test.js</code> (la acción de crear PIAR coincide con los roles autorizados y el formulario del docente usa sus estudiantes asignados) y <code>pedagogical-model.test.js</code> (validación del responsable y versionado con instantáneas completas y justificación del autor).</li>
+<li><b>Usabilidad:</b> la barra de implementación comunica el avance de un vistazo; el estado se identifica con una etiqueta de color y texto.</li>
+<li><b>Mantenibilidad:</b> cada modificación de un plan genera una versión con instantánea anterior y posterior (<code>piar-versioning.js</code>), lo que separa el historial de la lógica de edición.</li></ul>
+<div class="field"><strong>Pruebas / resultado / estado</strong><p>Implementada; pruebas unitarias aprobadas.</p></div>
+</div></div>
+
+<!-- ============================ 07 ============================ -->
+<div class="entry"><h3>Entrada de Bitácora 07: Documento PIAR y estrategias DUA</h3><div class="chips"><span>Funcionalidad 07</span><span>Plan individual</span><span class="ok">Implementada</span><span class="ok">Evidencia completa</span></div><div class="panel">
+<div class="field"><strong>Descripción del Proceso</strong>
+<p>«Ver PIAR» abre el «Documento PIAR / PR»: encabezado con el estudiante, el periodo, el estado y el avance; barra de acciones según el rol (Editar PIAR, Docentes asignados, Cerrar PIAR, Reabrir PIAR —solo Coordinación— e Imprimir / Guardar PDF); fichas con el contenido del plan; y secciones de Diseño Universal para el Aprendizaje (DUA), ajustes razonables, diagnósticos, observaciones, seguimientos, historia escolar y versiones del PIAR.</p>
+<p>La sección DUA agrupa las estrategias en los tres principios —múltiples formas de representación, de acción y expresión, y de implicación— y permite registrar o editar cada estrategia con su principio, área, descripción y recursos. El historial de versiones muestra quién cambió el plan, cuándo, qué operación realizó y con qué justificación, y permite comparar versiones sin ofrecer controles de restauración. Un plan cerrado es de solo lectura.</p></div>
+<div class="field"><strong>Procedimiento</strong><ol>
+<li>En «PIAR / PR», pulsar «Ver PIAR» en la tarjeta del plan.</li>
+<li>Recorrer las fichas y las secciones del documento.</li>
+<li>En la sección DUA, pulsar «Registrar estrategia DUA», elegir el principio y guardar.</li>
+<li>Pulsar «Imprimir / Guardar PDF» para obtener el documento impreso.</li>
+</ol></div>
+<div class="field"><strong>Archivos relacionados</strong><p><code>public/js/app.js</code> (<code>viewPIAR</code>, <code>loadPiarVersionHistory</code>, <code>renderPiarVersionHistory</code>, <code>renderVersionChanges</code>) · <code>public/js/piar-management.js</code> (<code>piarActionBar</code>, <code>duaSection</code>, <code>DUA_PRINCIPLE_LABELS</code>, <code>openDuaModal</code>, <code>saveDua</code>, <code>openPiarStatusModal</code>, <code>printPiarDetail</code>) · <code>public/js/piar-version-history.js</code> · <code>backend/piar-versioning.js</code></p></div>
+<figure><img src="capturas/07a-documento-piar.png" alt="Documento PIAR abierto en la vista Docente con encabezado del estudiante de ejemplo, botones Editar PIAR e Imprimir / Guardar PDF y fichas del plan"><figcaption><b>Figura 7a.</b> Documento PIAR consultado por el Docente, con las acciones permitidas para su rol.</figcaption></figure>
+<figure><img src="capturas/07b-estrategia-dua-diseno-previo.png" alt="Formulario Registrar estrategia DUA con selección del principio, área, estrategia y recursos y apoyos"><figcaption><b>Figura 7b.</b> Formulario «Registrar estrategia DUA» (versión anterior de la interfaz; los campos son los mismos de la versión actual).</figcaption></figure>
+<div class="quality-title">Aspectos de Calidad Asegurados</div><ul class="quality">
+<li><b>Seguridad:</b> las acciones del documento siguen los permisos del servidor para cada rol; solo Coordinación reabre un plan cerrado; el historial de versiones excluye de las diferencias los campos personales, clínicos y secretos, y comunica las respuestas 403 y 404 sin exponer contenido.</li>
+<li><b>Fiabilidad:</b> <code>piar-management-ui.test.js</code> (acciones por rol y agrupación DUA con texto escapado), <code>piar-version-history-ui.test.js</code> (listado, comparación de versiones y ausencia de controles de restauración) y <code>authorization.test.js</code> (alcance de lectura de versiones y reapertura exclusiva de Coordinación).</li>
+<li><b>Usabilidad:</b> el documento reúne toda la información del plan en una sola vista; un aviso explica cuándo el plan está cerrado y quién puede reabrirlo; la versión impresa oculta los botones (clase <code>no-print</code>).</li>
+<li><b>Mantenibilidad:</b> la gestión del plan (<code>piar-management.js</code>) y el historial (<code>piar-version-history.js</code>) son módulos independientes cargados antes de <code>app.js</code>.</li></ul>
+<div class="field"><strong>Pruebas / resultado / estado</strong><p>Implementada; pruebas unitarias aprobadas.</p></div>
+</div></div>
+
+<!-- ============================ 08 ============================ -->
+<div class="entry"><h3>Entrada de Bitácora 08: Barreras, ajustes razonables y evidencias</h3><div class="chips"><span>Funcionalidad 08</span><span>Ajustes razonables</span><span class="ok">Implementada</span><span class="partial">Evidencia parcial</span></div><div class="panel">
+<div class="field"><strong>Descripción del Proceso</strong>
+<p>Dentro del Documento PIAR, la sección «Ajustes razonables» organiza la trazabilidad pedagógica en cuatro registros encadenados:</p>
+<ul>
+<li><b>Barrera:</b> contexto, barrera observada, actividad o situación, condición del entorno y fecha de identificación.</li>
+<li><b>Ajuste razonable:</b> barrera relacionada, área, tipo, estrategia, recursos, resultado esperado, indicador de logro, fecha de revisión y responsable.</li>
+<li><b>Evidencia del ajuste:</b> descripción, fecha y referencia.</li>
+<li><b>Seguimiento del ajuste.</b></li>
+</ul>
+<p>Los botones de registro solo aparecen a los roles que pueden editar el plan, cuando el PIAR pertenece a su alcance y no está cerrado. Las escrituras se hacen mediante endpoints asociados al PIAR, y las barreras y las evidencias solo admiten nuevos registros: no se modifican ni se borran.</p></div>
+<div class="field"><strong>Procedimiento</strong><ol>
+<li>Abrir el Documento PIAR de un plan activo.</li>
+<li>En «Ajustes razonables», pulsar «Registrar barrera», diligenciar el formulario y guardar.</li>
+<li>Pulsar «Registrar ajuste razonable», asociar la barrera y guardar.</li>
+<li>En la ficha del ajuste, usar «Registrar evidencia» y «Registrar seguimiento».</li>
+</ol></div>
+<div class="field"><strong>Archivos relacionados</strong><p><code>public/js/app.js</code> (<code>openBarrierModal</code>, <code>savePiarBarrier</code>, <code>openAdjustmentModal</code>, <code>savePiarAdjustment</code>, <code>openEvidenceModal</code>, <code>savePiarEvidence</code>, <code>openAdjustmentFollowUpModal</code>, <code>saveAdjustmentFollowUp</code>, <code>canEditPiarTrace</code>, <code>showTraceFormError</code>) · <code>backend/pedagogical-validation.js</code> · <code>backend/pedagogical-access.js</code></p></div>
+<figure><img src="capturas/08-registro-barrera.png" alt="Formulario Registrar barrera del entorno con contexto, barrera observada, actividad o situación, condición del entorno y fecha de identificación"><figcaption><b>Figura 8.</b> Formulario «Registrar barrera del entorno» con los campos obligatorios marcados.</figcaption></figure>
+<div class="quality-title">Aspectos de Calidad Asegurados</div><ul class="quality">
+<li><b>Seguridad:</b> las acciones se ocultan y se bloquean en el cliente para los PIAR no asignados, y el servidor aplica las mismas reglas; las barreras y las evidencias son de solo adición para los editores; la referencia de la evidencia es texto plano de longitud acotada.</li>
+<li><b>Fiabilidad:</b> <code>pedagogical-ui.test.js</code> (formularios disponibles para editores, escritura mediante endpoints del PIAR, envíos duplicados bloqueados), <code>pedagogical-model.test.js</code> (contextos y fechas validados, evidencia con descripción y fecha válidas) y <code>authorization.test.js</code> (barreras y evidencias de solo adición).</li>
+<li><b>Usabilidad:</b> los formularios tienen semántica de diálogo, manejo del foco con teclado, devolución del foco al cerrar y mensajes de error accesibles; cada control visible tiene una etiqueta programática.</li>
+<li><b>Mantenibilidad:</b> los cuatro formularios comparten el mismo patrón de envío y de presentación de errores (<code>showTraceFormError</code>).</li></ul>
+<div class="field"><strong>Pruebas / resultado / estado</strong><p>Implementada; pruebas unitarias aprobadas. Falta la captura de una ficha de ajuste con evidencias, porque para mostrarla es necesario guardar primero esos registros en la base de datos.</p></div>
+</div></div>
+
+<!-- ============================ 09 ============================ -->
+<div class="entry"><h3>Entrada de Bitácora 09: Generación de reportes</h3><div class="chips"><span>Funcionalidad 09</span><span>Visualización e informes</span><span class="ok">Implementada</span><span class="ok">Evidencia completa</span></div><div class="panel">
+<div class="field"><strong>Descripción del Proceso</strong>
+<p>El módulo «Reportes» permite elegir el tipo de informe (seguimiento individual, avance de objetivos o comité institucional), el estudiante (uno o todos), el periodo, el PIAR que se desea guardar y la fecha. «Generar reporte» construye el informe en pantalla con un resumen (estudiantes, PIAR, avance promedio y revisiones pendientes) y el detalle por estudiante. «Imprimir / guardar PDF» abre la impresión del navegador.</p>
+<p>«Guardar informe del PIAR» envía la solicitud al servidor, que construye por sí mismo la instantánea del informe —sin confiar en el contenido enviado por el navegador— y la almacena con el autor, el estudiante, el PIAR y un hash SHA-256 del contenido. Un informe idéntico del mismo autor en un lapso de 10 minutos no se duplica. Los informes guardados se listan en la misma vista y pueden consultarse después.</p></div>
+<div class="field"><strong>Procedimiento</strong><ol>
+<li>Abrir el menú «Reportes».</li>
+<li>Seleccionar el tipo, el estudiante, el periodo y la fecha, y pulsar «Generar reporte».</li>
+<li>Pulsar «Imprimir / guardar PDF» para obtener el documento, o seleccionar un PIAR y pulsar «Guardar informe del PIAR».</li>
+<li>Consultar el informe en la tabla «Informes guardados».</li>
+</ol></div>
+<div class="field"><strong>Archivos relacionados</strong><p><code>public/js/app.js</code> (<code>renderReports</code>, <code>generateReport</code>, <code>buildReportHTML</code>, <code>printReport</code>) · <code>public/js/report-history.js</code> (<code>saveCurrentReport</code>, <code>loadSavedReports</code>, <code>viewSavedReport</code>, <code>renderReportSnapshot</code>) · <code>public/js/data.js</code> (<code>reportTypes</code>) · <code>backend/reports.js</code></p></div>
+<figure><img src="capturas/09a-reportes.png" alt="Vista Reportes con los filtros de tipo, estudiante, periodo, PIAR y fecha, los botones de acción y el informe de seguimiento individual generado"><figcaption><b>Figura 9a.</b> Generador de reportes con los filtros y el informe «Seguimiento individual».</figcaption></figure>
+<figure><img src="capturas/09b-reporte-impresion.png" alt="Vista de impresión del informe de seguimiento individual sin menús ni botones"><figcaption><b>Figura 9b.</b> Vista de impresión del informe, sin menús ni botones.</figcaption></figure>
+<div class="quality-title">Aspectos de Calidad Asegurados</div><ul class="quality">
+<li><b>Seguridad:</b> solo se aceptan tipos de informe conocidos, un identificador de PIAR y un periodo corto; un docente no puede guardar informes de un PIAR que no tiene asignado; la instantánea se construye en el servidor.</li>
+<li><b>Fiabilidad:</b> <code>reports.test.js</code> (validación de la solicitud, instantánea con hash del contenido, prevención de duplicados, restricción por asignación y compatibilidad con el esquema anterior a la migración 014).</li>
+<li><b>Usabilidad:</b> el informe se previsualiza antes de imprimir o guardar; la hoja de impresión elimina menús y botones (<code>design-system.test.js</code> verifica la impresión clara).</li>
+<li><b>Mantenibilidad:</b> el historial de informes está separado en <code>report-history.js</code>, y los tipos de informe se definen como datos en <code>data.js</code>.</li></ul>
+<div class="field"><strong>Pruebas / resultado / estado</strong><p>Implementada; pruebas unitarias aprobadas. No se incluye la tabla «Informes guardados» con registros, porque para mostrarla es necesario guardar informes en la base de datos.</p></div>
+</div></div>
+
+<!-- ============================ 10 ============================ -->
+<div class="entry"><h3>Entrada de Bitácora 10: Administración de usuarios y solicitudes</h3><div class="chips"><span>Funcionalidad 10</span><span>Administración</span><span class="ok">Implementada</span><span class="ok">Evidencia completa</span></div><div class="panel">
+<div class="field"><strong>Descripción del Proceso</strong>
+<p>Los menús «Solicitudes» y «Usuarios» solo aparecen para el rol Administrador. «Solicitudes» lista las cuentas Docente pendientes y muestra si el correo ya fue verificado. Los botones «Aprobar» y «Rechazar» solo se habilitan tras la verificación; ambas decisiones piden confirmación, y el rechazo exige un motivo de hasta 500 caracteres. El servidor solo aprueba cuentas Docente públicas en estado pendiente, impide que un administrador decida sobre su propia cuenta y vincula el perfil docente dentro de la misma transacción.</p>
+<p>«Usuarios» presenta las cuentas institucionales con nombre, correo, documento, rol, estado y último acceso, filtrables por texto y por estado, con acciones para editar, desactivar o reactivar. La interfaz no ofrece al administrador la opción de desactivar su propia cuenta.</p></div>
+<div class="field"><strong>Procedimiento</strong><ol>
+<li>Iniciar sesión como Administrador y abrir «Solicitudes».</li>
+<li>Para una solicitud con «Correo verificado», pulsar «Aprobar» o «Rechazar» (con motivo) y confirmar.</li>
+<li>Abrir «Usuarios», filtrar por texto o estado y usar «Editar», «Desactivar» o «Reactivar».</li>
+</ol></div>
+<div class="field"><strong>Archivos relacionados</strong><p><code>public/js/app.js</code> (<code>renderRegistrationRequests</code>, <code>decideRegistrationRequest</code>) · <code>public/js/user-admin.js</code> (<code>renderUserAdministration</code>, <code>userAdminTable</code>, <code>filterUserAdministration</code>, <code>openUserEditModal</code>, <code>saveUserEdit</code>) · <code>public/js/api.js</code> (<code>apiGetUsers</code>, <code>apiDecideUserApproval</code>) · <code>backend/registration-approval.js</code> · <code>backend/admin-account-operations.js</code> · <code>backend/admin-account-audit.js</code></p></div>
+<figure><img src="capturas/10a-solicitudes.png" alt="Vista Solicitudes de registro con dos solicitudes de docente: una con correo verificado y botones Aprobar y Rechazar, y otra pendiente de verificación"><figcaption><b>Figura 10a.</b> Solicitudes de registro: solo la solicitud con correo verificado habilita «Aprobar» y «Rechazar».</figcaption></figure>
+<figure><img src="capturas/10b-usuarios.png" alt="Vista Usuarios con la tabla de cuentas institucionales, filtros de búsqueda y estado, y acciones Editar y Desactivar"><figcaption><b>Figura 10b.</b> Cuentas institucionales con filtros y acciones; la cuenta del administrador en sesión no muestra «Desactivar».</figcaption></figure>
+<div class="quality-title">Aspectos de Calidad Asegurados</div><ul class="quality">
+<li><b>Seguridad:</b> no es posible aprobar cuentas privilegiadas ni cuentas que no estén pendientes; las decisiones sobre la propia cuenta y los rechazos sin motivo acotado se rechazan antes de consultar la base de datos; si falla la vinculación del perfil, la decisión se revierte; las operaciones sobre la cuenta del Administrador inicial quedan registradas en la tabla de auditoría <code>admin_account_audit</code>.</li>
+<li><b>Fiabilidad:</b> <code>registration-approval.test.js</code>, <code>registration-requests-ui.test.js</code> (decisiones habilitadas solo tras la verificación y motivo obligatorio para rechazar), <code>piar-management-ui.test.js</code> (sin autodesactivación y con datos escapados) y <code>admin-account-operations.test.js</code>. Además, una consulta de solo lectura en la base de datos de pruebas confirmó que la cuenta del Administrador está activa, tiene el correo verificado y registra dos eventos de auditoría: su creación y la verificación del correo.</li>
+<li><b>Usabilidad:</b> el estado de cada solicitud se indica con texto y color («Correo verificado», «Correo por verificar»); cada decisión requiere confirmación explícita.</li>
+<li><b>Mantenibilidad:</b> la administración de cuentas (<code>user-admin.js</code>) y las reglas de aprobación (<code>registration-approval.js</code>) están separadas de la autenticación.</li></ul>
+<div class="field"><strong>Pruebas / resultado / estado</strong><p>Implementada; pruebas unitarias aprobadas.</p></div>
+</div></div>
+</section>
+
+<section><h2 class="section">Conclusiones</h2><div class="conclusion">
+<p>Documentar los procesos del Sistema PIAR permitió relacionar cada funcionalidad visible con el código que la implementa y con las pruebas que la respaldan. Este ejercicio de trazabilidad mostró que el sistema cubre el ciclo completo del Plan Individual de Ajustes Razonables —acceso, caracterización de estudiantes y docentes, elaboración del plan, identificación de barreras, ajustes con evidencias, seguimiento e informes— y que cada etapa respeta los permisos del rol que la ejecuta, un aspecto crítico cuando se trata de información sensible de estudiantes.</p>
+<p>En cuanto a la calidad, la verificación se apoyó en evidencia concreta: la suite de 264 pruebas unitarias automatizadas se ejecutó sin fallos y cubre la autenticación, el registro y la aprobación de cuentas, la autorización por rol, la validación pedagógica, el versionado del PIAR, los informes y el sistema de diseño. La seguridad se aborda en varias capas —cifrado de contraseñas, limitación de intentos, cookies protegidas, validación en el servidor y salida escapada—, y la usabilidad incorpora criterios de accesibilidad como el contraste WCAG AA, el foco visible y el respeto por el movimiento reducido.</p>
+<p>Entre los aprendizajes se destaca el valor de verificar cada afirmación contra el código y las pruebas, en lugar de describir el comportamiento esperado. También se identificaron actividades pendientes: ejecutar las pruebas de integración y de extremo a extremo, comprobar el envío real de correos y el acceso con proveedores externos en un entorno configurado, y registrar evidencias visuales de un ajuste razonable con sus evidencias y de los informes guardados, que requieren datos almacenados en la base de datos. Estas actividades quedan como siguiente paso del proyecto.</p>
+</div>
+
+<h3 style="color:var(--navy);font-size:16px;margin-top:28px">Índice de figuras</h3>
+<div class="table-wrap"><table class="summary">
+<thead><tr><th>Figura</th><th>Descripción</th><th>Archivo</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Pantalla de inicio de sesión</td><td><code>01-inicio-sesion.png</code></td></tr>
+<tr><td>2</td><td>Formulario de registro de cuenta docente</td><td><code>02-registro-docente.png</code></td></tr>
+<tr><td>3a</td><td>Dashboard del Administrador</td><td><code>03a-dashboard-administrador.png</code></td></tr>
+<tr><td>3b</td><td>Seguimientos recientes (versión anterior)</td><td><code>03b-seguimientos-coordinador-diseno-previo.png</code></td></tr>
+<tr><td>3c</td><td>Formulario de nueva observación</td><td><code>03c-nueva-observacion.png</code></td></tr>
+<tr><td>4a</td><td>Gestión de estudiantes</td><td><code>04a-estudiantes.png</code></td></tr>
+<tr><td>4b</td><td>Formulario de nuevo estudiante</td><td><code>04b-nuevo-estudiante.png</code></td></tr>
+<tr><td>5a</td><td>Gestión de docentes</td><td><code>05-docentes-vista.png</code></td></tr>
+<tr><td>5b</td><td>Formulario de nuevo docente</td><td><code>05-docentes.png</code></td></tr>
+<tr><td>6a</td><td>Listado de planes PIAR</td><td><code>06-piar-listado-docente.png</code></td></tr>
+<tr><td>6b</td><td>Formulario de nuevo PIAR</td><td><code>06b-nuevo-piar.png</code></td></tr>
+<tr><td>7a</td><td>Documento PIAR</td><td><code>07a-documento-piar.png</code></td></tr>
+<tr><td>7b</td><td>Formulario de estrategia DUA (versión anterior)</td><td><code>07b-estrategia-dua-diseno-previo.png</code></td></tr>
+<tr><td>8</td><td>Formulario de registro de barrera</td><td><code>08-registro-barrera.png</code></td></tr>
+<tr><td>9a</td><td>Generador de reportes</td><td><code>09a-reportes.png</code></td></tr>
+<tr><td>9b</td><td>Vista de impresión del informe</td><td><code>09b-reporte-impresion.png</code></td></tr>
+<tr><td>10a</td><td>Solicitudes de registro</td><td><code>10a-solicitudes.png</code></td></tr>
+<tr><td>10b</td><td>Cuentas institucionales</td><td><code>10b-usuarios.png</code></td></tr>
+</tbody></table></div>
+<p class="small">Las imágenes se encuentran en la carpeta <code>capturas/</code>, junto a este documento.</p>
+
+<div class="signature"><b>Sistema PIAR – Plan Individual de Ajustes Razonables</b><br>Bitácora de procesos de software · 2026</div></section>
+</main></body></html>

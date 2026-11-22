@@ -1,0 +1,86 @@
+EVIDENCIA DE PRUEBAS LOCALES - 2026-10-04
+Proyecto: Sistema PIAR
+Rama: security/fase-1-hardening
+Entorno: proceso local de auditoría; secretos y valores de conexión no fueron leídos ni impresos.
+
+1) Suite unitaria explícita
+Comando:
+node --test tests/authorization.test.js tests/security-output.test.js tests/ui-permissions.test.js tests/auth-session.test.js
+
+Salida de resumen observada:
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1595.5784
+Código de salida: 0
+
+Subtests reportados como ok:
+- malformed session cookie is treated as an absent session
+- anonymous users receive 401 and Student is denied institutional routes
+- only Coordinator and Psychologist create diagnoses; all institutional roles can update/delete
+- only Admin, Rector and Coordinator manage student and teacher profiles
+- PIAR, assignment, notes and immutable-note permissions remain approved
+- mutation outcomes distinguish changes, unchanged existing rows and missing rows
+- synthetic student, observation and diagnosis payloads become inert HTML text
+- PIAR creation action matches backend-authorized roles
+
+2) Suite por comodín
+Comando:
+node --test tests/*.test.js
+
+Salida de resumen observada:
+1..9
+# tests 9
+# suites 0
+# pass 8
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1271.965
+Código de salida: 1
+Única causa reportada:
+Subtest de integración `tests/integration.test.js` rechazado durante preflight:
+Preflight rechazado: DB_HOST debe estar configurada para el entorno local de pruebas.
+La llamada ocurrió antes de conectar a MySQL, iniciar el backend o escribir datos. Se clasifica como prueba detenida por condición del entorno, no como fallo funcional de PIAR.
+
+3) Chequeos sintácticos
+Se ejecutó `node --check` para:
+backend/auth.js
+backend/authorization.js
+backend/mutation-result.js
+backend/server.js
+tests/authorization.test.js
+tests/auth-session.test.js
+tests/security-output.test.js
+tests/ui-permissions.test.js
+tests/integration.test.js
+Resultado: todos los comandos terminaron con código de salida 0.
+
+4) Higiene del diff
+Comando: git diff --check
+Resultado: código de salida 0, sin errores de whitespace. Git emitió avisos de conversión LF/CRLF para archivos locales previamente modificados.
+
+5) Límite de la evidencia
+La integración HTTP/SQL comunicada previamente desde VS Code (8 aprobadas, 0 fallidas, 1 omitida; ~4,93 s) no se repitió en este proceso y no se presenta como ejecución de esta sesión. No se incluye la salida TAP original porque no fue suministrada. El estado posterior de los IDs sintéticos en `piar_test` no se verificó directamente.
+
+6) Revalidación adicional de Codex — 2026-10-04
+Suite unitaria ejecutada nuevamente:
+node --test tests/authorization.test.js tests/security-output.test.js tests/ui-permissions.test.js tests/auth-session.test.js
+Resultado TAP: 8 pruebas, 8 aprobadas, 0 fallidas, 0 omitidas, 0 canceladas; duración 610.497 ms; código de salida 0.
+
+Chequeo sintáctico ejecutado con `node --check` para backend/auth.js, backend/authorization.js, backend/mutation-result.js, backend/server.js, public/js/api.js, public/js/app.js, public/js/config.js, public/js/data.js, public/js/security.js y los cinco archivos tests/*.test.js. Todos terminaron con código 0. `git diff --check` terminó con código 0; Git mostró avisos LF/CRLF en archivos locales preexistentes.
+
+Preflight read-only del entorno: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD y PORT estaban ausentes (solo se registró presencia/ausencia, nunca valores). No había listener TCP en 127.0.0.1:3307 ni 127.0.0.1:8081. No se ejecutó `tests/integration.test.js`, no se conectó a MySQL, no se inició el backend y no se hicieron escrituras. El resultado de integración de VS Code descrito arriba sigue siendo histórico e informado por la usuaria, no repetido ni verificado aquí. No se comprobó la limpieza ni el contenido de `piar_test`.
+
+7) Diagnóstico de configuración local — 2026-10-04
+El TAP previo de `node --test tests/*.test.js` concluyó 8 pass / 1 fail. El subtest de integración se detuvo durante preflight con `Preflight rechazado: DB_HOST debe estar configurada para el entorno local de pruebas.` No llegó a conexión, backend ni fixtures. La integración reportada desde VS Code (8 pass, 0 fail, 1 skipped) es previa e informada, no repetida.
+
+Inspección read-only: servicio Windows `MySQL80` detenido con inicio Manual; comandos `docker`, `mysql`, `mysqladmin` y `mysqld` no disponibles; no se encontró configuración compose de desarrollo. README y defaults de `backend/db.js` apuntan a MySQL local en 3306/base `piar`, no al destino exigido por el arnés (loopback 3307, DB/cuenta `piar_test`, backend 8081). No se inició el servicio ni se aplicó `001_mvp_core.sql`: no está confirmado que la instancia/base sean exclusivas de pruebas y esa migración modifica el esquema. Sin una instancia local dedicada con esquema compatible y credenciales verificadas, no es seguro ejecutar SQL ni certificar limpieza.
+
+Desbloqueo requerido: disponer de una instancia dedicada a pruebas accesible únicamente en `127.0.0.1:3307`, con base `piar_test`, usuario de pruebas restringido a esa base, esquema completo y privilegios SELECT/INSERT/UPDATE/DELETE. En la terminal VS Code, configurar `DB_HOST=127.0.0.1`, `DB_PORT=3307`, `DB_NAME=piar_test`, `DB_USER=piar_test`, `PORT=8081` y cargar `DB_PASSWORD` desde el gestor local sin imprimirlo; verificar esos valores no secretos y ejecutar `node --test tests/integration.test.js`. No reutilizar `MySQL80`/`piar` ni ejecutar migraciones hasta confirmar aislamiento.
