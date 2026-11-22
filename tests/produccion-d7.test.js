@@ -288,3 +288,53 @@ test("D7: sin autorización del acudiente, estudiante vinculado, inexistente o r
         assert.ok(!db.statements.some(item => item.sql?.startsWith("INSERT")));
     }
 });
+
+test("despachador: el manejador recibe currentTarget = elemento con la acción (regresión del inicio de sesión)", async () => {
+    const { createActionEvent, runElementAction } = require("../public/js/event-actions");
+    // Evento real de un envío delegado: currentTarget es document, que no tiene setAttribute.
+    const documentStub = { querySelector: () => null };
+    const form = {
+        attrs: {}, dataset: {},
+        getAttribute(name) { return name === "data-onsubmit" ? "login(event)" : null; },
+        setAttribute(name, value) { this.attrs[name] = value; },
+        querySelector() { return null; }
+    };
+    const nativeEvent = { type: "submit", target: form, currentTarget: documentStub, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+
+    const wrapped = createActionEvent(nativeEvent, form);
+    assert.equal(wrapped.currentTarget, form);
+    assert.equal(wrapped.target, form);
+    wrapped.preventDefault();
+    assert.equal(nativeEvent.defaultPrevented, true, "preventDefault actúa sobre el evento original");
+    assert.equal(wrapped.defaultPrevented, true);
+
+    // Manejador con la misma forma que login(): preventDefault y luego usa event.currentTarget como formulario.
+    nativeEvent.defaultPrevented = false;
+    const previousWindow = globalThis.window;
+    let received = null;
+    globalThis.window = { login: async function (event) { event.preventDefault(); const target = event.currentTarget; target.setAttribute("aria-busy", "true"); received = { target, self: this }; } };
+    const errors = [];
+    const originalError = console.error;
+    console.error = message => errors.push(String(message));
+    try {
+        runElementAction(form, "submit", nativeEvent);
+        await new Promise(resolve => setImmediate(resolve));
+    } finally {
+        console.error = originalError;
+        globalThis.window = previousWindow;
+    }
+    assert.deepEqual(errors, [], "sin «setAttribute is not a function»");
+    assert.equal(received.target, form);
+    assert.equal(received.self, form);
+    assert.equal(form.attrs["aria-busy"], "true");
+    assert.equal(nativeEvent.defaultPrevented, true);
+});
+
+test("formularios: las funciones que toman el formulario del evento lo hacen con currentTarget", () => {
+    // Si alguien vuelve a pasar el evento nativo sin envoltura, este contrato deja de cumplirse.
+    const app = read("public/js/app.js");
+    const dispatcher = read("public/js/event-actions.js");
+    assert.ok((app.match(/event\.currentTarget/g) || []).length >= 4, "login, registro, cambio inicial y beginTraceFormSubmission");
+    assert.match(dispatcher, /const actionEvent = createActionEvent\(event, element\);/);
+    assert.match(dispatcher, /parseActionArgument\(token, actionEvent, element\)/);
+});

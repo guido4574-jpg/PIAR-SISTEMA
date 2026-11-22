@@ -8,13 +8,29 @@ function apiUrl(name) {
     return `${API_BASE_URL}${normalized}${suffix.length ? `/${suffix.join("/")}` : ""}`;
 }
 
+// Límite de espera: si el servidor no responde, la petición falla y los formularios recuperan
+// su estado (los botones «Ingresando…», «Guardando…» se restablecen en sus bloques finally).
+const API_TIMEOUT_MS = 30000;
+
 async function apiRequest(name, method, body) {
-    const response = await fetch(apiUrl(name), {
-        method,
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) })
-    });
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), API_TIMEOUT_MS) : null;
+    let response;
+    try {
+        response = await fetch(apiUrl(name), {
+            method,
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+            ...(controller ? { signal: controller.signal } : {})
+        });
+    } catch (cause) {
+        const error = new Error(controller?.signal.aborted ? "El servidor no respondió a tiempo. Inténtalo de nuevo." : "No hay conexión con el servidor.");
+        error.status = 0;
+        throw error;
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
         const error = new Error(payload.message || "No se pudo completar la solicitud");

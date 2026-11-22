@@ -56,6 +56,18 @@ function parseActionExpression(expression) {
     return { name: match[1], args };
 }
 
+// Envoltura del evento real: currentTarget devuelve el elemento con la acción; el resto de
+// propiedades y métodos (preventDefault, target, defaultPrevented…) son los del evento original.
+function createActionEvent(event, element) {
+    return new Proxy(event, {
+        get(target, property) {
+            if (property === "currentTarget") return element;
+            const value = Reflect.get(target, property, target);
+            return typeof value === "function" ? value.bind(target) : value;
+        }
+    });
+}
+
 function runElementAction(element, type, event) {
     const parsed = parseActionExpression(element.getAttribute(`data-on${type}`));
     if (!parsed || !PIAR_EVENT_ACTIONS.includes(parsed.name)) {
@@ -67,7 +79,10 @@ function runElementAction(element, type, event) {
         console.error(`La acción ${parsed.name} no está disponible.`);
         return;
     }
-    const args = parsed.args.map(token => parseActionArgument(token, event, element));
+    // Con delegación, event.currentTarget es document. Las funciones existentes esperan el
+    // elemento que declara la acción (como con los atributos en línea), por ejemplo el formulario.
+    const actionEvent = createActionEvent(event, element);
+    const args = parsed.args.map(token => parseActionArgument(token, actionEvent, element));
     const result = handler.apply(element, args);
     if (result && typeof result.catch === "function") result.catch(error => console.error(error?.message || error));
 }
@@ -91,5 +106,5 @@ if (typeof document !== "undefined") {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-    module.exports = { PIAR_EVENT_ACTIONS, PIAR_EVENT_TYPES, parseActionExpression, parseActionArgument };
+    module.exports = { PIAR_EVENT_ACTIONS, PIAR_EVENT_TYPES, parseActionExpression, parseActionArgument, createActionEvent, runElementAction };
 }
