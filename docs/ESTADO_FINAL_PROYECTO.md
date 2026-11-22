@@ -27,7 +27,8 @@ Este documento sustituye como referencia a `docs/ESTADO_ACTUAL_PROYECTO.md` y a 
 | Interfaz con CSP sin scripts en línea | Probado en Chrome sin interfaz (demo visual). Sin revisión con datos reales guardados |
 | Imagen de producción y migración remota | Probadas en local con Docker y TLS. Railway no está probado |
 | Traslado de la Administradora 178 (D6) | Ensayado y verificado en dos esquemas desechables |
-| Envío real de correo (Gmail SMTP) | **Bloqueado**: falta la contraseña de aplicación y la prueba autorizada. Además, Railway bloquea el SMTP saliente en los planes Free, Trial y Hobby (`docs/DESPLIEGUE_RAILWAY.md` §0) |
+| Envío de correo por Resend (API HTTPS) | Implementado y probado con un servidor local que imita la API (11 pruebas). **Sin envío real**: faltan la cuenta de Resend, la clave, un dominio verificado y la prueba autorizada (`docs/DESPLIEGUE_RAILWAY.md` §7.1) |
+| Envío por Gmail SMTP | Alternativa solo con plan Pro de Railway; el proyecto está en Trial |
 | Google, Microsoft y Apple | Implementados con simulaciones y **ocultos**; sin credenciales |
 
 ## 2. Trabajo de esta fase
@@ -66,7 +67,7 @@ Resultados de las pruebas: `docs/MATRIZ_PRUEBAS_PIAR.md`.
 
 ## 3. Pendientes reales
 
-1. **Correo:** Railway bloquea el SMTP en los planes Free, Trial y Hobby. Hay que decidir entre el plan Pro (Gmail SMTP) y un proveedor por HTTPS, y después hacer una prueba autorizada (`docs/DESPLIEGUE_RAILWAY.md` §0 y §7).
+1. **Correo:** Resend ya está integrado (D9). Falta crear la cuenta, obtener la clave (Sending access), verificar un dominio de la institución, cargar las variables en Railway y hacer una prueba autorizada (`docs/DESPLIEGUE_RAILWAY.md` §7.1). Sin dominio propio solo llega al dueño de la cuenta de Resend.
 2. **Railway:** crear `piar_produccion` y sus cuentas, migrar, verificar con `npm run db:verificar`, trasladar la cuenta 178, configurar variables y desplegar (`docs/DESPLIEGUE_RAILWAY.md` §5).
 3. **`TRUSTED_PROXIES`:** verificar el rango del proxy de Railway después del primer despliegue.
 4. **Repositorio:**

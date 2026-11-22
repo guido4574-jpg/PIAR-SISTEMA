@@ -40,7 +40,13 @@ function assertPersistentEmailTransport(env = process.env) {
         }
         return mode;
     }
-    throw new Error("Configura un transporte SMTP o API persistente para verificar el Administrador.");
+    if (mode === "resend") {
+        // Lanza un error genérico (sin valores) si falta la clave, el remitente o la URL es insegura.
+        resendSettings(env);
+        resendSender(env);
+        return mode;
+    }
+    throw new Error("Configura un transporte SMTP, Resend o API persistente.");
 }
 
 async function deliverEmail(to, subject, text) {
@@ -48,8 +54,139 @@ async function deliverEmail(to, subject, text) {
     const mode = String(process.env.EMAIL_TRANSPORT || "api").toLowerCase();
     if (mode === "memory") return sendMemory(to, subject, text);
     if (mode === "smtp") return sendSmtp(to, subject, text);
+    if (mode === "resend") return sendResend(to, subject, text);
     if (mode === "api") return sendApi(to, subject, text);
     throw new Error("Email transport is not configured.");
+}
+
+// Resend (API HTTPS, https://resend.com/docs/api-reference/emails/send-email). Evita SMTP,
+// que Railway bloquea en los planes Trial y Hobby. La clave y el remitente llegan por
+// variables de entorno; nunca se registran ni se incluyen en los errores.
+const RESEND_API_ORIGIN = "https://api.resend.com";
+// Resend rechaza con 403 las peticiones sin User-Agent.
+// Valor genérico: identifica la aplicación sin datos del proyecto ni de la institución.
+const RESEND_USER_AGENT = "piar-mailer/1.0";
+const RESEND_KEY = /^re_[A-Za-z0-9_-]{16,200}$/;
+const RESEND_ERROR_NAME = /^[a-z][a-z0-9_]{1,63}$/;
+const SENDER_NAME_FORBIDDEN = /[\r\n<>"\\]/;
+
+function emailTimeoutMs(env = process.env) {
+    const value = Number(env.EMAIL_TIMEOUT_MS || 10000);
+    if (!Number.isInteger(value) || value < 100 || value > 30000) throw new Error("EMAIL_TIMEOUT_MS debe ser un entero entre 100 y 30000.");
+    return value;
+}
+
+function resendSettings(env = process.env) {
+    const apiKey = String(env.RESEND_API_KEY || "").trim();
+    if (!RESEND_KEY.test(apiKey)) throw new Error("Resend no está configurado: falta RESEND_API_KEY o su formato no es válido.");
+    // RESEND_API_BASE_URL solo existe para pruebas locales; en producción se usa siempre la API oficial.
+    let base;
+    try { base = new URL(String(env.RESEND_API_BASE_URL || RESEND_API_ORIGIN).trim()); } catch { throw new Error("Resend no está configurado: URL de la API no válida."); }
+    const localTest = env.NODE_ENV === "test" && ["127.0.0.1", "localhost", "::1", "[::1]"].includes(base.hostname);
+    if (base.username || base.password || (base.protocol !== "https:" && !localTest) || (env.NODE_ENV === "production" && base.origin !== RESEND_API_ORIGIN)) {
+        throw new Error("Resend no está configurado: la API debe ser la oficial por HTTPS.");
+    }
+    return { apiKey, origin: base.origin, timeoutMs: emailTimeoutMs(env) };
+}
+
+// "Nombre <correo>" si EMAIL_FROM_NAME existe; el correo debe pertenecer a un dominio verificado en Resend.
+function resendSender(env = process.env) {
+    const from = String(env.EMAIL_FROM || "").trim();
+    if (!EMAIL_RE.test(from) || /[\r\n]/.test(from)) throw new Error("Email sender is not configured.");
+    const name = String(env.EMAIL_FROM_NAME || "").trim();
+    if (!name) return from;
+    if (name.length > 80 || SENDER_NAME_FORBIDDEN.test(name)) throw new Error("EMAIL_FROM_NAME no es válido.");
+    return `${name} <${from}>`;
+}
+
+function senderDomain(env = process.env) {
+    return String(env.EMAIL_FROM || "").trim().toLowerCase().split("@")[1] || "";
+}
+
+// Solo el nombre del error (formato de constante en minúsculas) y el código HTTP; nunca el mensaje,
+// que puede repetir direcciones o dominios.
+async function resendErrorDiagnostic(response, stage) {
+    let name = null;
+    try {
+        const body = await response.json();
+        if (typeof body?.name === "string" && RESEND_ERROR_NAME.test(body.name)) name = body.name;
+    } catch { /* cuerpo no JSON */ }
+    const retryAfter = Number(response.headers.get("retry-after"));
+    return Object.freeze({ provider: "resend", stage, code: null, responseCode: response.status, name, retryAfterSeconds: Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter : null });
+}
+
+async function resendRequest(settings, path, init, stage) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), settings.timeoutMs);
+    try {
+        return await fetch(`${settings.origin}${path}`, {
+            ...init,
+            headers: { Authorization: `Bearer ${settings.apiKey}`, "User-Agent": RESEND_USER_AGENT, Accept: "application/json", ...(init.headers || {}) },
+            signal: controller.signal,
+            redirect: "error"
+        });
+    } catch {
+        const timedOut = controller.signal.aborted;
+        throw new EmailTransportError(timedOut ? "Resend no respondió a tiempo." : "No se pudo conectar con Resend.",
+            Object.freeze({ provider: "resend", stage, code: timedOut ? "ETIMEDOUT" : "ECONNECTION", responseCode: null, name: null, retryAfterSeconds: null }));
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function sendResend(to, subject, text, env = process.env) {
+    const settings = resendSettings(env);
+    const from = resendSender(env);
+    const response = await resendRequest(settings, "/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from, to: [to], subject, text })
+    }, "envío");
+    if (!response.ok) {
+        const diagnostic = await resendErrorDiagnostic(response, "envío");
+        // Registro operativo sin datos personales ni secretos: solo código y nombre del error.
+        console.error(`Resend rechazó el envío: HTTP ${diagnostic.responseCode}${diagnostic.name ? ` (${diagnostic.name})` : ""}.`);
+        throw new EmailTransportError("Resend rechazó el envío del correo.", diagnostic);
+    }
+    let body = null;
+    try { body = await response.json(); } catch { /* se valida abajo */ }
+    if (typeof body?.id !== "string" || !body.id) {
+        throw new EmailTransportError("Resend respondió sin identificador de mensaje.", Object.freeze({ provider: "resend", stage: "envío", code: "EINVALIDRESPONSE", responseCode: response.status, name: null, retryAfterSeconds: null }));
+    }
+    return { id: body.id };
+}
+
+// Comprobación sin envío: el dominio de EMAIL_FROM debe figurar como "verified" en Resend.
+// Requiere una clave con acceso completo; una clave de solo envío responde 401 restricted_api_key.
+async function verifyResendSender(env = process.env) {
+    const settings = resendSettings(env);
+    resendSender(env);
+    const domain = senderDomain(env);
+    if (domain === "resend.dev") return { domain, status: "prueba", sendsOnlyToAccountOwner: true };
+    const response = await resendRequest(settings, "/domains", { method: "GET" }, "verificación del dominio");
+    if (!response.ok) throw new EmailTransportError("No se pudo consultar los dominios en Resend.", await resendErrorDiagnostic(response, "verificación del dominio"));
+    let body = null;
+    try { body = await response.json(); } catch { /* se valida abajo */ }
+    const domains = Array.isArray(body?.data) ? body.data : [];
+    const match = domains.find(item => String(item?.name || "").toLowerCase() === domain);
+    return { domain, status: match ? String(match.status || "desconocido") : "no_registrado", sendsOnlyToAccountOwner: false };
+}
+
+function resendDiagnosticHint(diagnostic) {
+    const { code, responseCode, name } = diagnostic || {};
+    if (code === "ETIMEDOUT") return "Resend no respondió dentro de EMAIL_TIMEOUT_MS; revisa la red o vuelve a intentarlo.";
+    if (code === "ECONNECTION") return "No hubo conexión HTTPS con api.resend.com; revisa la salida a internet.";
+    if (name === "restricted_api_key") return "La clave es de solo envío (recomendado en producción). Para comprobar el dominio usa una clave de acceso completo solo en esta prueba, o revisa el estado en el panel de Resend.";
+    if (responseCode === 401 || name === "missing_api_key" || (responseCode === 400 && name === "validation_error")) return "Resend rechazó la clave: revisa RESEND_API_KEY o crea una nueva.";
+    if (responseCode === 403 && name === "validation_error") return "El dominio de EMAIL_FROM no está verificado, o se usa onboarding@resend.dev con un destinatario distinto del dueño de la cuenta.";
+    if (responseCode === 403) return "Resend denegó la operación (clave suspendida, inactiva o sin permisos, o falta User-Agent).";
+    if (name === "daily_quota_exceeded") return "Se agotó la cuota diaria del plan (100 correos en el gratuito); se reinicia a medianoche UTC.";
+    if (name === "monthly_quota_exceeded") return "Se agotó la cuota mensual del plan (3.000 correos en el gratuito).";
+    if (responseCode === 429) return "Se superó el límite de velocidad de Resend; vuelve a intentarlo en unos segundos.";
+    if (responseCode === 422) return "Resend rechazó los datos del mensaje (campo obligatorio o parámetro no válido).";
+    if (responseCode >= 500) return "Error temporal de Resend; vuelve a intentarlo más tarde.";
+    if (code === "EINVALIDRESPONSE") return "La respuesta de Resend no tuvo el formato esperado.";
+    return "Error de Resend no clasificado.";
 }
 
 function sendMemory(to, subject, text) {
@@ -177,6 +314,11 @@ function smtpDiagnosticHint(diagnostic) {
 // Texto en español para mostrar en consola; solo usa los campos depurados.
 function describeSmtpDiagnostic(diagnostic) {
     if (!diagnostic) return "Sin diagnóstico SMTP disponible.";
+    if (diagnostic.provider === "resend") {
+        const parts = [`etapa: ${diagnostic.stage}`, `código: ${diagnostic.code || "-"}`, `HTTP: ${diagnostic.responseCode || "-"}`, `error de Resend: ${diagnostic.name || "-"}`];
+        if (diagnostic.retryAfterSeconds !== null && diagnostic.retryAfterSeconds !== undefined) parts.push(`reintentar en: ${diagnostic.retryAfterSeconds} s`);
+        return `${parts.join(" | ")}. ${resendDiagnosticHint(diagnostic)}`;
+    }
     const parts = [
         `etapa: ${diagnostic.stage}${diagnostic.command ? ` (${diagnostic.command})` : ""}`,
         `código: ${diagnostic.code || "-"}${diagnostic.originalCode ? ` / ${diagnostic.originalCode}` : ""}`,
@@ -226,5 +368,6 @@ async function verifySmtpTransport() {
 
 module.exports = {
     deliverEmail, validateMessage, sendSmtp, verifySmtpTransport, takeDevelopmentOutbox, assertPersistentEmailTransport,
-    EmailTransportError, smtpDiagnostic, describeSmtpDiagnostic
+    EmailTransportError, smtpDiagnostic, describeSmtpDiagnostic,
+    sendResend, verifyResendSender, resendSettings, resendSender, RESEND_API_ORIGIN, RESEND_USER_AGENT
 };

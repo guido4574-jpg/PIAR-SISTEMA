@@ -227,9 +227,9 @@ Después, la Administradora inicia sesión y comprueba Usuarios → Nueva cuenta
 Procedimiento completo y verificaciones: `docs/DESPLIEGUE_RAILWAY.md` (§2 a §9). Lo primero es la decisión de correo del §0.
 
 ## H. Correo 🔒
-- **Configuración y prueba:** `docs/DESPLIEGUE_RAILWAY.md` §7.
-- **Herramienta:** `npm run correo:probar -- --verificar`, y para enviar, `-- --enviar <destino>` con `PIAR_CONFIRMAR_ENVIO=SI`.
-- **Decisión pendiente:** el plan de Railway (§0), porque Hobby bloquea el SMTP.
+- **Configuración y prueba:** `docs/DESPLIEGUE_RAILWAY.md` §7.1 (Resend, vigente) y §7.2 (Gmail SMTP, solo con plan Pro).
+- **Herramienta:** `npm run correo:probar -- --verificar` (con Resend, comprueba el dominio remitente sin enviar). Para enviar: `-- --enviar <destino>` con `PIAR_CONFIRMAR_ENVIO=SI`.
+- **Pendiente:** la cuenta de Resend, la clave y un dominio institucional verificado. El plan Trial de Railway bloquea el SMTP, pero no la API HTTPS.
 
 ## I. Inventario de elementos de ensayo (no se ha eliminado nada)
 

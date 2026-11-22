@@ -111,3 +111,13 @@ Recomendación adoptada para que el rol Estudiante sea operable; la institución
   - aviso por correo de la decisión sobre una solicitud, sin incluir el motivo del rechazo;
   - un campo opcional vaciado al editar un PIAR o un docente se guarda vacío;
   - CSP sin `'unsafe-inline'` en `script-src` (delegación de eventos en `public/js/event-actions.js`).
+
+### D9. Correo por Resend durante la evaluación académica (2026-11-22)
+- **Motivo:** el proyecto de Railway está en plan Trial, que bloquea el SMTP saliente (465/587). Gmail SMTP queda como alternativa si se contrata el plan Pro.
+- **Cambio:** se añade `EMAIL_TRANSPORT=resend` en `backend/email.js`, que envía por la API HTTPS de Resend. El resto del sistema sigue usando `deliverEmail()` y el proveedor se cambia por configuración.
+- **Variables:** `RESEND_API_KEY` (secreta), `EMAIL_FROM` (de un dominio verificado en Resend), `EMAIL_FROM_NAME` y `EMAIL_TIMEOUT_MS` (opcionales).
+- **Seguridad:**
+  - clave de **solo envío**;
+  - en producción, solo `https://api.resend.com`;
+  - errores y registros sin clave, destinatario ni mensaje.
+- **Condición para operar:** un dominio institucional verificado en Resend. Con `onboarding@resend.dev` solo llega al dueño de la cuenta.

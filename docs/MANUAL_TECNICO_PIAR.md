@@ -28,7 +28,7 @@ Actualizado: 2026-11-22. La versión anterior, con el historial de octubre, est�
 | `reports.js` | Informes persistentes con instantánea construida por el servidor |
 | `rate-limit*.js`, `login-throttle.js`, `client-ip.js` | Límites en memoria o MySQL; IP real solo detrás de `TRUSTED_PROXIES` |
 | `security-events.js`, `maintenance.js` | `evento_seguridad` (correo en hash, IP truncada) y purga periódica |
-| `email.js` | Transportes `smtp`, `api` y `memory` (solo en desarrollo) |
+| `email.js` | Punto único de envío (`deliverEmail`). Transportes `resend` (API HTTPS de Resend, vigente en Railway Trial), `smtp`, `api` y `memory` (solo en desarrollo). Los errores solo conservan el código HTTP o técnico y el nombre del error |
 | `oidc.js` | Google, Microsoft y Apple (implementados, ocultos en la interfaz y sin credenciales) |
 
 ## 3. Frontend

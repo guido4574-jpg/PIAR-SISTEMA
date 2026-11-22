@@ -13,12 +13,12 @@ Según la documentación de Railway y las respuestas de su soporte, los planes *
 - [Station: SMTP bloqueado en Hobby](https://station.railway.com/questions/i-am-on-the-hobby-plan-but-my-smtp-port-fae4611b)
 - [Station: puertos aún bloqueados tras pasar a Pro](https://station.railway.com/questions/outbound-smtp-port-465-still-blocked-a-580551e5)
 
-Consecuencia: **Gmail SMTP (la decisión institucional) solo funcionará si el proyecto está en el plan Pro.** Alternativas que requieren decisión:
+Consecuencia: **Gmail SMTP solo funcionará si el proyecto está en el plan Pro.** El proyecto está en plan **Trial**. Para el periodo de evaluación académica se implementó la opción B con **Resend** (decisión D9, §7). Alternativas:
 
 | Opción | Cambio | Costo o esfuerzo |
 |---|---|---|
 | A. Plan Pro de Railway | Ninguno en el código | Costo mensual del plan. Hay que comprobar la conexión con `probar-correo.js --verificar` desde Railway (§7), porque algunos usuarios informan bloqueos incluso después de cambiar de plan |
-| B. Proveedor transaccional por HTTPS (Resend, SendGrid, Mailgun, Postmark) | Nuevo adaptador en `backend/email.js`. El transporte `api` actual espera un servicio propio que reciba `{to, subject, text}` | Desarrollo y pruebas, y una cuenta en el proveedor |
+| **B. Resend por HTTPS (implementada)** | `EMAIL_TRANSPORT=resend` en `backend/email.js`; el resto del sistema no cambia | Plan gratuito de Resend, con los límites del §7, y un dominio verificado |
 | C. Servicio intermedio propio con `EMAIL_TRANSPORT=api` | Un servicio HTTPS que reciba `{to, subject, text}` con `Authorization: Bearer` y lo reenvíe | Otro servicio que mantener |
 
 Sin correo, PIAR funciona, pero no llegan los enlaces de verificación, recuperación ni cambio de correo, ni los avisos de decisión. Las respuestas al usuario no cambian, para no revelar si una cuenta existe.
@@ -65,11 +65,11 @@ El segundo comando lista solo los **nombres** de las variables, no sus valores. 
 | `PIAR_DIAGNOSTICO_PROXY` | `1` solo durante la verificación del §8; luego se retira | — |
 | `MAINTENANCE_INTERVAL_MINUTES` | `60` | Fijo |
 | `SECURITY_EVENT_RETENTION_DAYS` | `365` | Fijo |
-| `EMAIL_TRANSPORT` | `smtp` (opción A del §0) | — |
-| `EMAIL_FROM` | La misma cuenta de Gmail | Gmail reescribe el remitente si no coincide |
-| `EMAIL_SMTP_HOST` / `_PORT` / `_SECURE` | `smtp.gmail.com` / `465` / `true` | O `587` / `false` (STARTTLS) |
-| `EMAIL_SMTP_USER` | La cuenta de Gmail | — |
-| `EMAIL_SMTP_PASSWORD` | Contraseña de aplicación de 16 caracteres, sin espacios | Solo en el panel (§7) |
+| `EMAIL_TRANSPORT` | `resend` | Opción B del §0. Con plan Pro se puede usar `smtp` (Gmail; variables `EMAIL_SMTP_*`, §7.2) |
+| `EMAIL_FROM` | Dirección de un dominio **verificado** en Resend, por ejemplo `piar@<subdominio verificado>` | Con `onboarding@resend.dev` solo llega al dueño de la cuenta de Resend |
+| `EMAIL_FROM_NAME` | Nombre visible, por ejemplo `PIAR Colegio Reinaldo Matiz` | Opcional |
+| `RESEND_API_KEY` | Clave `re_…` con permiso **Sending access** | Solo en el panel. Se carga con `--stdin` |
+| `EMAIL_TIMEOUT_MS` | `10000` | Opcional (100–30000) |
 
 No se definen `HOST` ni `PORT` (los fijan el `Dockerfile` y Railway), ni `EMAIL_DEV_OUTBOX_SECRET`, `GOOGLE_*`, `MICROSOFT_*` o `APPLE_*`.
 
@@ -177,7 +177,7 @@ Commits según `docs/PROCEDIMIENTOS_PENDIENTES.md` §A; después, `push` y la fu
 | `curl -s -o NUL -w "%{http_code}" https://<dominio>/api/dev/email-outbox` | `404` |
 | La Administradora inicia sesión personalmente | Entra. En las herramientas del navegador, la cookie `piar_session` aparece con `HttpOnly`, `Secure` y `SameSite=Lax` |
 | `railway ssh` → `node scripts/verificar-produccion.js --esperar-admin` | `VERIFICACIÓN SUPERADA.` |
-| Prueba de correo (§7) | El mensaje llega |
+| Prueba de correo (§7.1) | El mensaje llega |
 
 ## 6. Alternativa: migrar y verificar dentro de Railway
 Si el proxy público no acepta TLS:
@@ -190,7 +190,59 @@ node scripts/verificar-produccion.js
 ```
 3. Para el traslado, copiar el paquete con un canal privado y ejecutar `admin-transfer.js` dentro del servicio. No se publica el dominio hasta terminar.
 
-## 7. Correo con Gmail SMTP (opción A del §0)
+## 7. Correo
+
+### 7.1 Resend (opción vigente, D9)
+Datos de la documentación oficial de Resend, consultada el 2026-11-22: [Envío](https://resend.com/docs/api-reference/emails/send-email), [Errores](https://resend.com/docs/api-reference/errors), [Dominios](https://resend.com/docs/dashboard/domains/introduction), [Precios](https://resend.com/pricing).
+
+**Cómo funciona en PIAR:**
+- `deliverEmail()` envía `POST https://api.resend.com/emails` con `Authorization: Bearer`, `User-Agent` (obligatorio en Resend) y el JSON `{from, to, subject, text}`.
+- Tiempo de espera: `EMAIL_TIMEOUT_MS`.
+- No hay reintentos automáticos.
+- Ante un fallo, el registro operativo solo guarda el código HTTP y el nombre del error, nunca la clave, el destinatario ni el mensaje.
+
+**1. Cuenta y clave** (en el navegador, por la persona responsable):
+- Crear la cuenta gratuita en `https://resend.com/signup`.
+- En **API Keys → Create API Key**, elegir el permiso **Sending access** y, si se puede, restringirla al dominio del paso 2.
+- Copiarla una sola vez; empieza por `re_`. Se guarda en el gestor de contraseñas.
+
+**2. Dominio remitente:**
+- Sin dominio propio verificado, Resend solo entrega desde `onboarding@resend.dev` y **solo al correo del dueño de la cuenta**; a cualquier otro destinatario responde 403.
+- Pasos:
+  1. En **Domains → Add Domain**, añadir un **subdominio** (Resend lo recomienda), por ejemplo `notificaciones.<dominio institucional>`.
+  2. Crear en el DNS del dominio los registros que muestre la pestaña **Records** (SPF y DKIM, tipos TXT/MX o CNAME). Deben copiarse exactos; si se usa Cloudflare, sin proxy (nube gris).
+  3. Pulsar **Verify DNS Records**. Suele tardar unos 15 minutos, y hasta 72 horas. El estado debe quedar en `verified`.
+  4. Después, añadir un registro DMARC como indica Resend.
+- **Hace falta un dominio** que la institución controle. Sin él, el correo solo sirve para pruebas al dueño de la cuenta.
+
+**3. Prueba local**, en PowerShell, sin la clave en el historial:
+```powershell
+$env:EMAIL_TRANSPORT="resend"; $env:EMAIL_FROM="piar@<subdominio verificado>"; $env:EMAIL_FROM_NAME="PIAR"
+$s = Read-Host "Clave de Resend" -AsSecureString
+$env:RESEND_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s))
+npm run correo:probar -- --verificar       # comprueba que el dominio esté «verified»; no envía
+$env:PIAR_CONFIRMAR_ENVIO="SI"; npm run correo:probar -- --enviar <buzón controlado>   # 🔒 envío real
+Remove-Item Env:RESEND_API_KEY, Env:PIAR_CONFIRMAR_ENVIO
+```
+`--verificar` necesita una clave con **Full access**. Con la clave de solo envío responde `restricted_api_key`; en ese caso, el estado del dominio se comprueba en el panel de Resend.
+
+**4. En Railway** 🔒:
+```powershell
+railway variable set --service PIAR-SISTEMA --skip-deploys EMAIL_TRANSPORT=resend EMAIL_FROM=<remitente verificado> "EMAIL_FROM_NAME=PIAR Colegio Reinaldo Matiz"
+$s = Read-Host "Clave de Resend" -AsSecureString
+[Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)) | railway variable set RESEND_API_KEY --stdin --service PIAR-SISTEMA --skip-deploys
+```
+Después del despliegue: `railway ssh --service PIAR-SISTEMA -- node scripts/probar-correo.js --verificar` y una recuperación de contraseña de una cuenta de prueba controlada.
+
+**Límites del plan gratuito de Resend:**
+- 3.000 correos al mes y **100 al día** (se reinicia a medianoche UTC);
+- 3 dominios y 30 días de retención de registros;
+- 10 solicitudes por segundo;
+- sin pago por uso.
+
+Al superar una cuota, Resend responde 429 (`daily_quota_exceeded` o `monthly_quota_exceeded`). PIAR mantiene la misma respuesta al usuario e invalida el enlace no entregado; la persona puede pedir uno nuevo al día siguiente.
+
+### 7.2 Alternativa: Gmail SMTP (solo con plan Pro)
 
 1. En la cuenta de Google institucional:
    - activar la verificación en dos pasos;

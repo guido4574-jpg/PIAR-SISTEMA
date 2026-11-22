@@ -57,6 +57,15 @@ Solo se repitió lo que cambió después de la segunda revisión: la retirada de
 | Huella de `piar_test` antes y después de esa revisión | Idéntica (27 tablas, `CHECKSUM TABLE … EXTENDED`) |
 | Contenido commiteado, extraído en una copia limpia | Primer intento: 335 de 337. En Windows, `core.autocrlf` convertía los archivos a CRLF y 2 pruebas que comparan texto exacto fallaban. Corregido con `* text=auto eol=lf` en `.gitattributes`. Resultado: **337 de 337** |
 
+### 2.3 Transporte Resend (2026-11-22)
+
+| Prueba | Resultado |
+|---|---|
+| `npm test` | **348 de 348 aprobadas** (337 anteriores, incluidas las de correo, registro, verificación, recuperación y notificaciones, más 11 nuevas en `tests/email-resend.test.js`) |
+| `tests/email-resend.test.js`, contra un servidor local que imita la API de Resend | La petición es `POST /emails` con `Bearer`, `User-Agent` y JSON `{from, to, subject, text}`; el remitente admite nombre visible. Las respuestas 401, 403, 429 (con `retry-after` y cuota diaria), 500 y 502 no JSON, y una respuesta sin `id`, se rechazan con un diagnóstico sin la clave ni el destinatario. El tiempo de espera (200 ms) y la conexión rechazada se detectan. Sin clave, con una clave mal formada o con un remitente inválido, o con inyección CRLF en el destinatario, no se hace ninguna petición. En producción solo se admite la API oficial por HTTPS. La validación de producción admite `resend` y advierte del remitente `resend.dev`. La verificación del dominio informa `verified`, `pending`, `no_registrado` y `restricted_api_key`. Registro, recuperación y aviso de decisión llegan por Resend; con Resend caído, la respuesta pública no cambia y el enlace no entregado se invalida |
+| `npm run check:secrets` | Sin hallazgos en 231 archivos. Nueva regla para claves `re_…` y `RESEND_API_KEY` con valor |
+| Envío real | **No realizado** (requiere cuenta, clave, dominio y autorización) |
+
 ## 3. Cobertura funcional con MySQL real
 
 | Funcionalidad | Integración | e2e |

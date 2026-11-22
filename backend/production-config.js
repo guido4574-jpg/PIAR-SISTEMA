@@ -57,7 +57,10 @@ function productionConfigReport(env = process.env) {
     if (/^piar_(test|dev)(_|$)/.test(dbName)) errors.push("DB_NAME no puede ser un esquema de pruebas o desarrollo en producción.");
 
     try { assertPersistentEmailTransport(env); } catch {
-        errors.push("El correo debe usar EMAIL_TRANSPORT=smtp (EMAIL_SMTP_*, EMAIL_FROM) o api con HTTPS; memory no está permitido.");
+        errors.push("El correo debe usar EMAIL_TRANSPORT=resend (RESEND_API_KEY, EMAIL_FROM), smtp (EMAIL_SMTP_*, EMAIL_FROM) o api con HTTPS; memory no está permitido.");
+    }
+    if (String(env.EMAIL_TRANSPORT || "").trim().toLowerCase() === "resend" && /@resend\.dev$/i.test(String(env.EMAIL_FROM || "").trim())) {
+        warnings.push("EMAIL_FROM usa el remitente de prueba de Resend: solo entrega al correo del dueño de la cuenta. Verifica un dominio propio.");
     }
     if (String(env.EMAIL_DEV_OUTBOX_SECRET || "").trim()) warnings.push("EMAIL_DEV_OUTBOX_SECRET no se usa en producción; retírala.");
     if (!String(env.TRUSTED_PROXIES || "").trim()) {

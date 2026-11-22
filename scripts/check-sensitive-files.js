@@ -26,8 +26,10 @@ const CONTENT_RULES = [
     [/-----BEGIN (RSA |EC |OPENSSH |)PRIVATE KEY-----/, "clave privada"],
     [/\bgh[pousr]_[A-Za-z0-9]{36,}\b/, "token de GitHub"],
     [/\bAKIA[0-9A-Z]{16}\b/, "clave de AWS"],
-    [/^\s*(DB_PASSWORD|MIGRATION_DB_PASSWORD|EMAIL_SMTP_PASSWORD|GOOGLE_CLIENT_SECRET|MICROSOFT_CLIENT_SECRET|APPLE_PRIVATE_KEY|PASSWORD_RESET_DELIVERY_SECRET|EMAIL_DEV_OUTBOX_SECRET)=(?!$|REPLACE_|<|\$\{\{)[^\s#]+/m, "secreto con valor en plantilla de entorno"],
+    [/^\s*(DB_PASSWORD|MIGRATION_DB_PASSWORD|EMAIL_SMTP_PASSWORD|RESEND_API_KEY|GOOGLE_CLIENT_SECRET|MICROSOFT_CLIENT_SECRET|APPLE_PRIVATE_KEY|PASSWORD_RESET_DELIVERY_SECRET|EMAIL_DEV_OUTBOX_SECRET)=(?!$|REPLACE_|<|\$\{\{)[^\s#]+/m, "secreto con valor en plantilla de entorno"],
     // Las referencias de Railway (${{Servicio.VARIABLE}}) no son secretos: se resuelven en el panel.
+    // Clave de API de Resend (re_ seguido de un valor aleatorio con dígitos y mayúsculas).
+    [/\bre_(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Z])[A-Za-z0-9_-]{20,}\b/, "clave de API de Resend"],
     // Correos de proveedores personales: datos personales reales. Los ejemplos usan dominios .invalid o example.
     [/\b[A-Za-z0-9._%+-]+@(gmail|googlemail|hotmail|outlook|live|yahoo|icloud)\.[a-z.]{2,6}\b/i, "correo personal"],
     // A bcrypt hash outside the documented timing dummy (exported account rows, dumps).
