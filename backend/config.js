@@ -4,7 +4,8 @@ const path = require("path");
 const envPath = path.resolve(__dirname, "..", ".env");
 
 try {
-    const contents = fs.readFileSync(envPath, "utf8");
+    // Tests must use their explicit isolated environment and never inspect local secrets.
+    const contents = process.env.NODE_ENV === "test" ? "" : fs.readFileSync(envPath, "utf8");
 
     for (const line of contents.split(/\r?\n/)) {
         const trimmedLine = line.trim();
