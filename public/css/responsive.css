@@ -1,0 +1,240 @@
+/* =========================================================
+   PIAR — ADAPTACIÓN A PANTALLAS, MOVIMIENTO REDUCIDO E IMPRESIÓN
+   Se carga al final para que estos ajustes prevalezcan.
+   Cortes: 992 px (tabletas), 768 px (tabletas pequeñas y móviles),
+   560 px (móviles).
+   (Las pantallas de acceso conservan sus propios cortes en auth.css.)
+   ========================================================= */
+
+/* =========================
+   TABLETAS (≤ 992 px)
+   ========================= */
+
+@media (max-width: 992px) {
+    .dashboard-layout {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+    }
+
+    .dashboard-navbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .dashboard-title {
+        font-size: var(--texto-3xl);
+    }
+}
+
+/* =========================
+   TABLETAS PEQUEÑAS Y MÓVILES (≤ 768 px)
+   ========================= */
+
+@media (max-width: 768px) {
+    /* El menú lateral se convierte en un panel que se despliega con ☰. */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: -100%;
+        z-index: var(--capa-menu);
+        width: min(280px, 86vw);
+        height: 100vh;
+        overflow-y: auto;
+    }
+
+    .sidebar.sidebar-collapsed {
+        left: 0;
+        width: min(280px, 86vw);
+        box-shadow: var(--sombra-lg);
+    }
+
+    .sidebar-collapsed .sidebar-menu li {
+        justify-content: flex-start;
+    }
+
+    .sidebar-collapsed .sidebar-menu li span {
+        display: inline;
+    }
+
+    .sidebar-collapsed .logout-btn {
+        font-size: var(--texto-base);
+    }
+
+    .dashboard-main {
+        padding: var(--espacio-5);
+    }
+
+    .dashboard-navbar {
+        margin-bottom: var(--espacio-6);
+    }
+
+    .table-card,
+    .chart-card,
+    .piar-card,
+    .student-card,
+    .stat-card {
+        padding: var(--espacio-5);
+    }
+
+    .report-output {
+        padding: var(--espacio-5);
+    }
+
+    .students-topbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .students-topbar .add-btn {
+        width: 100%;
+    }
+}
+
+/* =========================
+   MÓVILES (≤ 560 px)
+   ========================= */
+
+@media (max-width: 560px) {
+    .dashboard-main {
+        padding: var(--espacio-4);
+    }
+
+    .dashboard-title {
+        font-size: var(--texto-2xl);
+    }
+
+    .user-profile {
+        flex-wrap: wrap;
+    }
+
+    .custom-modal-overlay {
+        align-items: flex-end;
+        padding: var(--espacio-2);
+    }
+
+    .custom-modal {
+        max-height: calc(100vh - 1rem);
+        padding: var(--espacio-5) var(--espacio-4) var(--espacio-6);
+        border-radius: var(--radio-xl) var(--radio-xl) var(--radio-lg) var(--radio-lg);
+    }
+
+    .custom-toast {
+        top: var(--espacio-3);
+        right: var(--espacio-3);
+        left: var(--espacio-3);
+        max-width: none;
+    }
+
+    .version-compare-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .table-header .btn-modern,
+    .action-row .btn-modern,
+    .action-row .table-btn {
+        width: 100%;
+    }
+}
+
+/* =========================
+   MOVIMIENTO REDUCIDO
+   Respeta la preferencia del sistema: sin desplazamientos ni animaciones.
+   ========================= */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .btn-modern:hover:not(:disabled),
+    .piar-card:hover,
+    .student-card:hover,
+    .stat-action:hover,
+    .sidebar-menu li:hover {
+        transform: none;
+    }
+}
+
+/* =========================
+   IMPRESIÓN
+   Los reportes y el detalle del PIAR se imprimen sobre fondo blanco.
+   ========================= */
+
+@media print {
+    body {
+        background: #FFFFFF;
+        color: #000000;
+    }
+
+    /* Reporte generado en la vista Reportes. */
+    body * {
+        visibility: hidden;
+    }
+
+    #reportOutput,
+    #reportOutput * {
+        visibility: visible;
+    }
+
+    #reportOutput {
+        position: absolute;
+        inset: 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .sidebar,
+    .dashboard-navbar,
+    .table-card {
+        display: none !important;
+    }
+
+    /* Detalle del PIAR ("Imprimir / guardar como PDF"). */
+    body.printing-piar #appModal,
+    body.printing-piar #appModal * {
+        visibility: visible;
+    }
+
+    body.printing-piar #appModal {
+        position: absolute;
+        inset: 0;
+        background: #FFFFFF;
+        backdrop-filter: none;
+    }
+
+    body.printing-piar #appModal .custom-modal {
+        width: 100%;
+        max-height: none;
+        overflow: visible;
+        border: 0;
+        background: #FFFFFF;
+        box-shadow: none;
+        animation: none;
+    }
+
+    body.printing-piar .close-modal,
+    body.printing-piar .no-print,
+    body.printing-piar .piar-version-history,
+    .no-print {
+        display: none !important;
+    }
+
+    .status-activo,
+    .status-revision,
+    .status-cerrado,
+    .status-inactivo,
+    .piar-status,
+    .student-status,
+    .badge-active {
+        border: 1px solid currentColor;
+    }
+}

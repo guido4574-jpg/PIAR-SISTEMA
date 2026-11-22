@@ -1,0 +1,707 @@
+/* =========================================================
+   SISTEMA DE DISEÑO PIAR — COMPONENTES
+   Componentes reutilizables construidos con los tokens de main.css.
+   Se conservan los nombres de clase que ya usa el JavaScript
+   (btn-modern, table-btn, input-modern, table-card, modern-table,
+   custom-modal, custom-toast…) para no alterar la lógica.
+   ========================================================= */
+
+/* =========================
+   BOTONES
+   ========================= */
+
+/* Botón principal. Ocupa todo el ancho por defecto (formularios);
+   .small-btn y .add-btn lo ajustan a su contenido. */
+.btn-modern {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--espacio-2);
+    width: 100%;
+    min-height: 46px;
+    padding: var(--espacio-3) var(--espacio-5);
+    border: 0;
+    border-radius: var(--radio-md);
+    background: var(--degradado-primario);
+    color: var(--color-blanco);
+    font-size: var(--texto-base);
+    font-weight: var(--peso-seminegrita);
+    line-height: 1.2;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(100, 44, 232, 0.18);
+    transition: transform var(--duracion-rapida) var(--curva-suave), box-shadow var(--duracion-media) var(--curva-suave), filter var(--duracion-media) var(--curva-suave);
+}
+
+.btn-modern:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--sombra-morada);
+    filter: brightness(1.06);
+}
+
+.btn-modern:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 4px 10px rgba(100, 44, 232, 0.2);
+}
+
+.btn-modern:disabled,
+.btn-modern[aria-busy="true"] {
+    opacity: 0.65;
+    box-shadow: none;
+    transform: none;
+}
+
+.small-btn {
+    width: auto;
+    min-height: 40px;
+    padding: var(--espacio-2) var(--espacio-4);
+    font-size: var(--texto-sm);
+}
+
+.add-btn {
+    width: auto;
+    padding: var(--espacio-3) var(--espacio-5);
+}
+
+/* Botón secundario (acciones de tablas, tarjetas y filas). */
+.table-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--espacio-2);
+    min-height: 38px;
+    padding: var(--espacio-2) var(--espacio-4);
+    border: 1px solid var(--color-morado-borde);
+    border-radius: var(--radio-md);
+    background: var(--color-morado-suave);
+    color: var(--color-morado-profundo);
+    font-size: var(--texto-sm);
+    font-weight: var(--peso-seminegrita);
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background-color var(--duracion-rapida), color var(--duracion-rapida), border-color var(--duracion-rapida);
+}
+
+.table-btn:hover:not(:disabled) {
+    background: var(--color-morado);
+    border-color: var(--color-morado);
+    color: var(--color-blanco);
+}
+
+.table-btn:disabled {
+    opacity: 0.6;
+}
+
+/* Variante de peligro para acciones destructivas o de rechazo. */
+.danger-btn,
+.table-btn.danger-btn {
+    border-color: var(--color-error-borde);
+    background: var(--color-error-fondo);
+    color: var(--color-error);
+}
+
+.danger-btn:hover:not(:disabled),
+.table-btn.danger-btn:hover:not(:disabled) {
+    background: var(--color-error);
+    border-color: var(--color-error);
+    color: var(--color-blanco);
+}
+
+/* Acciones de aprobación de solicitudes. */
+.approval-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espacio-2);
+}
+
+.approval-actions button {
+    min-height: 34px;
+    padding: var(--espacio-1) var(--espacio-3);
+    border: 1px solid var(--color-morado-borde);
+    border-radius: var(--radio-sm);
+    background: var(--color-morado-suave);
+    color: var(--color-morado-profundo);
+    font-size: var(--texto-xs);
+    font-weight: var(--peso-seminegrita);
+    cursor: pointer;
+}
+
+.approval-actions button:hover {
+    background: var(--color-morado);
+    border-color: var(--color-morado);
+    color: var(--color-blanco);
+}
+
+.approval-actions .approval-reject {
+    border-color: var(--color-error-borde);
+    background: var(--color-error-fondo);
+    color: var(--color-error);
+}
+
+.approval-actions .approval-reject:hover {
+    background: var(--color-error);
+    border-color: var(--color-error);
+    color: var(--color-blanco);
+}
+
+/* Botón circular para cerrar ventanas. */
+.close-modal {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radio-completo);
+    background: var(--color-morado-suave);
+    color: var(--color-morado-profundo);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color var(--duracion-rapida), color var(--duracion-rapida);
+}
+
+.close-modal:hover {
+    background: var(--color-morado);
+    color: var(--color-blanco);
+}
+
+/* =========================
+   CAMPOS DE FORMULARIO
+   ========================= */
+
+label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espacio-2);
+    color: var(--color-texto);
+    font-size: var(--texto-sm);
+    font-weight: var(--peso-seminegrita);
+}
+
+/* Indicador visual de campo obligatorio cuando la etiqueta precede al control.
+   El atributo required ya lo anuncia a los lectores de pantalla. */
+label:has(+ :is(input, select, textarea)) {
+    /* Etiqueta separada del control: bloque, para que el asterisco quede en línea. */
+    display: block;
+}
+
+label:has(+ :is(input, select, textarea)[required])::after {
+    content: " *";
+    content: " *" / "";
+    color: var(--color-error);
+}
+
+.input-modern {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    padding: var(--espacio-3) var(--espacio-4);
+    border: 1px solid var(--color-borde-fuerte);
+    border-radius: var(--radio-md);
+    background: var(--color-blanco);
+    color: var(--color-texto);
+    font-size: 0.95rem;
+    font-weight: var(--peso-normal);
+    box-shadow: none;
+    transition: border-color var(--duracion-rapida), box-shadow var(--duracion-rapida);
+}
+
+.input-modern::placeholder,
+.search-input::placeholder {
+    color: var(--color-placeholder);
+    opacity: 1;
+}
+
+.input-modern:hover:not(:disabled):not([readonly]) {
+    border-color: #8F9AB8;
+}
+
+.input-modern:focus,
+.input-modern:focus-visible {
+    border-color: var(--color-morado);
+    box-shadow: var(--anillo-foco);
+    /* Contorno transparente: visible en modos de alto contraste de Windows. */
+    outline: 2px solid transparent;
+    outline-offset: 0;
+}
+
+.input-modern:disabled,
+.input-modern[readonly] {
+    background: #F1F3F9;
+    color: var(--color-texto-secundario);
+}
+
+textarea.input-modern {
+    min-height: 96px;
+    resize: vertical;
+}
+
+select.input-modern {
+    appearance: none;
+    padding-right: 2.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%234320A8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.85rem center;
+    background-size: 16px;
+}
+
+/* Estado de error: lo activan las validaciones con aria-invalid. */
+.input-modern[aria-invalid="true"] {
+    border-color: var(--color-error);
+    box-shadow: 0 0 0 3px rgba(153, 27, 27, 0.16);
+}
+
+/* Campo de búsqueda de los listados. */
+.search-input {
+    flex: 1;
+    min-width: 0;
+    min-height: 48px;
+    padding: var(--espacio-3) var(--espacio-5);
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio-lg);
+    background: var(--color-blanco);
+    color: var(--color-texto);
+    font-size: 0.95rem;
+    box-shadow: var(--sombra-sm);
+    transition: border-color var(--duracion-rapida), box-shadow var(--duracion-rapida);
+}
+
+.search-input:focus,
+.search-input:focus-visible {
+    border-color: var(--color-morado);
+    box-shadow: var(--anillo-foco);
+    outline: 2px solid transparent;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: var(--espacio-4);
+}
+
+.modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espacio-3);
+}
+
+.modal-form small,
+.form-help {
+    color: var(--color-texto-secundario);
+    font-size: var(--texto-xs);
+    font-weight: var(--peso-normal);
+}
+
+/* =========================
+   TARJETAS Y PANELES
+   ========================= */
+
+.table-card,
+.chart-card,
+.report-output,
+.piar-card,
+.student-card,
+.stat-card {
+    background: var(--color-superficie);
+    border: 1px solid var(--color-borde-suave);
+    border-radius: var(--radio-xl);
+    box-shadow: var(--sombra-sm);
+}
+
+.table-card,
+.chart-card,
+.piar-card,
+.student-card,
+.stat-card {
+    padding: var(--espacio-6);
+}
+
+.report-output {
+    padding: var(--espacio-8);
+}
+
+/* Tarjetas que llevan a una acción: elevación discreta al pasar el cursor. */
+.piar-card,
+.student-card,
+.stat-action {
+    transition: transform var(--duracion-media) var(--curva-suave), box-shadow var(--duracion-media) var(--curva-suave), border-color var(--duracion-media);
+}
+
+.piar-card:hover,
+.student-card:hover,
+.stat-action:hover {
+    transform: translateY(-2px);
+    border-color: var(--color-morado-borde);
+    box-shadow: var(--sombra-md);
+}
+
+.table-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espacio-3);
+    margin-bottom: var(--espacio-5);
+}
+
+.table-header h3,
+.chart-card h3 {
+    font-size: var(--texto-lg);
+    font-weight: var(--peso-seminegrita);
+}
+
+.table-header > span {
+    color: var(--color-texto-secundario);
+    font-size: var(--texto-sm);
+}
+
+.info-card {
+    padding: var(--espacio-4) var(--espacio-5);
+    border: 1px solid #ECE6FD;
+    border-radius: var(--radio-lg);
+    background: var(--color-superficie-suave);
+}
+
+.info-card h4 {
+    margin-bottom: var(--espacio-2);
+    color: var(--color-morado-profundo);
+    font-size: var(--texto-sm);
+    font-weight: var(--peso-seminegrita);
+}
+
+.info-card p {
+    color: var(--color-texto);
+    overflow-wrap: anywhere;
+}
+
+/* Estado vacío de listados y tablas. */
+.empty-state {
+    width: 100%;
+    padding: var(--espacio-6);
+    border: 1px dashed var(--color-borde-fuerte);
+    border-radius: var(--radio-lg);
+    background: #FAFBFF;
+    color: var(--color-texto-secundario);
+    text-align: center;
+}
+
+/* =========================
+   TABLAS
+   ========================= */
+
+.modern-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: var(--texto-sm);
+}
+
+.modern-table th {
+    padding: var(--espacio-3) var(--espacio-4);
+    background: var(--color-azul-desvanecido);
+    color: var(--color-azul);
+    font-size: var(--texto-xs);
+    font-weight: var(--peso-seminegrita);
+    letter-spacing: 0.04em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.modern-table th:first-child {
+    border-top-left-radius: var(--radio-md);
+    border-bottom-left-radius: var(--radio-md);
+}
+
+.modern-table th:last-child {
+    border-top-right-radius: var(--radio-md);
+    border-bottom-right-radius: var(--radio-md);
+}
+
+.modern-table td {
+    padding: var(--espacio-3) var(--espacio-4);
+    border-bottom: 1px solid var(--color-borde-suave);
+    color: var(--color-texto);
+    vertical-align: top;
+    /* Correos y documentos largos pueden partirse; el ancho mínimo evita
+       que palabras cortas como «Administrador» se corten. */
+    min-width: 9rem;
+    overflow-wrap: anywhere;
+}
+
+.modern-table tbody tr {
+    transition: background-color var(--duracion-rapida);
+}
+
+.modern-table tbody tr:hover {
+    background: #FAF8FF;
+}
+
+.modern-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+/* Desplazamiento horizontal en pantallas estrechas. */
+.responsive-table {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.responsive-table .modern-table {
+    min-width: 720px;
+}
+
+/* =========================
+   ETIQUETAS DE ESTADO
+   ========================= */
+
+.piar-status,
+.student-status,
+.badge-active,
+.approval-state,
+.status-activo,
+.status-revision,
+.status-cerrado,
+.status-inactivo,
+.status-unknown {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--espacio-2);
+    padding: 0.3rem 0.75rem;
+    border-radius: var(--radio-completo);
+    font-size: var(--texto-xs);
+    font-weight: var(--peso-seminegrita);
+    line-height: 1.3;
+    white-space: nowrap;
+}
+
+/* Punto decorativo: el estado siempre se comunica también con texto. */
+.piar-status::before,
+.student-status::before,
+.badge-active::before,
+.approval-state::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: var(--radio-completo);
+    background: currentColor;
+}
+
+.status-activo,
+.badge-active {
+    background: var(--color-exito-fondo);
+    color: var(--color-exito);
+}
+
+.status-revision {
+    background: var(--color-advertencia-fondo);
+    color: var(--color-advertencia);
+}
+
+.status-cerrado,
+.status-inactivo {
+    background: var(--color-neutro-fondo);
+    color: var(--color-neutro);
+}
+
+.status-unknown {
+    background: var(--color-info-fondo);
+    color: var(--color-info);
+}
+
+.approval-state {
+    background: var(--color-advertencia-fondo);
+    color: var(--color-advertencia);
+}
+
+.approval-state-ready {
+    background: var(--color-exito-fondo);
+    color: var(--color-exito);
+}
+
+.approval-waiting {
+    color: var(--color-texto-secundario);
+    font-size: var(--texto-xs);
+}
+
+/* =========================
+   BARRA DE PROGRESO
+   ========================= */
+
+.progress-bar {
+    height: 8px;
+    border-radius: var(--radio-completo);
+    background: #E6E9F4;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: var(--radio-completo);
+    background: var(--degradado-acento);
+    transition: width var(--duracion-lenta) var(--curva-suave);
+}
+
+/* =========================
+   ALERTAS Y MENSAJES
+   ========================= */
+
+.alert,
+.trace-form-feedback {
+    margin: 0;
+    padding: var(--espacio-3) var(--espacio-4);
+    border: 1px solid var(--color-info-borde);
+    border-left-width: 4px;
+    border-radius: var(--radio-md);
+    background: var(--color-info-fondo);
+    color: var(--color-info);
+    font-size: var(--texto-sm);
+}
+
+.alert-exito {
+    border-color: var(--color-exito-borde);
+    background: var(--color-exito-fondo);
+    color: var(--color-exito);
+}
+
+.alert-advertencia {
+    border-color: var(--color-advertencia-borde);
+    background: var(--color-advertencia-fondo);
+    color: var(--color-advertencia);
+}
+
+.alert-error,
+.trace-form-feedback {
+    border-color: var(--color-error-borde);
+    background: var(--color-error-fondo);
+    color: var(--color-error);
+}
+
+.alert[hidden],
+.trace-form-feedback[hidden] {
+    display: none;
+}
+
+/* =========================
+   VENTANAS MODALES
+   ========================= */
+
+.custom-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--capa-modal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--espacio-4);
+    background: rgba(17, 26, 56, 0.55);
+    backdrop-filter: blur(4px);
+}
+
+.custom-modal {
+    width: 100%;
+    max-width: 760px;
+    max-height: calc(100vh - 2rem);
+    overflow: auto;
+    padding: var(--espacio-6) var(--espacio-8) var(--espacio-8);
+    border-top: 4px solid transparent;
+    border-radius: var(--radio-xl);
+    /* Franja superior con el degradado institucional. */
+    background: linear-gradient(var(--color-blanco), var(--color-blanco)) padding-box, var(--degradado-primario) border-box;
+    box-shadow: var(--sombra-lg);
+    animation: modalShow var(--duracion-media) var(--curva-suave);
+}
+
+@keyframes modalShow {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header-custom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espacio-4);
+    margin-bottom: var(--espacio-5);
+    padding-bottom: var(--espacio-4);
+    border-bottom: 1px solid var(--color-borde-suave);
+}
+
+.modal-header-custom h2 {
+    font-size: var(--texto-xl);
+    font-weight: var(--peso-seminegrita);
+}
+
+.modal-body-custom {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espacio-4);
+}
+
+/* =========================
+   AVISOS EMERGENTES (TOAST)
+   ========================= */
+
+.custom-toast {
+    position: fixed;
+    top: var(--espacio-6);
+    right: var(--espacio-6);
+    z-index: var(--capa-aviso);
+    display: flex;
+    align-items: center;
+    gap: var(--espacio-3);
+    max-width: min(420px, calc(100vw - 2rem));
+    padding: var(--espacio-3) var(--espacio-5);
+    border: 1px solid var(--color-exito-borde);
+    border-left-width: 4px;
+    border-radius: var(--radio-lg);
+    background: var(--color-blanco);
+    color: var(--color-texto);
+    font-size: var(--texto-sm);
+    font-weight: var(--peso-medio);
+    box-shadow: var(--sombra-lg);
+    opacity: 0;
+    transform: translateY(-12px);
+    transition: opacity var(--duracion-media) var(--curva-suave), transform var(--duracion-media) var(--curva-suave);
+}
+
+.show-toast {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.custom-toast i {
+    flex-shrink: 0;
+    font-size: 1.2rem;
+    color: var(--color-exito);
+}
+
+.custom-toast.warning {
+    border-color: var(--color-advertencia-borde);
+}
+
+.custom-toast.warning i {
+    color: var(--color-advertencia);
+}
+
+.custom-toast.error {
+    border-color: var(--color-error-borde);
+}
+
+.custom-toast.error i {
+    color: var(--color-error);
+}
+
+/* Alta de cuenta Estudiante: casilla de autorización del acudiente. */
+.modal-form fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.modal-form fieldset legend { font-weight: 600; margin-bottom: 0.5rem; }
+.checkbox-field { display: flex; gap: 0.5rem; align-items: flex-start; grid-column: 1 / -1; }
+.checkbox-field input[type="checkbox"] { margin-top: 0.25rem; flex: 0 0 auto; }

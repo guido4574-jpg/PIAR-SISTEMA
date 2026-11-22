@@ -1,265 +1,1337 @@
-.auth-container{
-    min-height:100vh;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:30px;
-    background:linear-gradient(135deg,#17306F 0%,#3454D1 42%,#F4F7FB 42%);
+/* =========================================================
+   PIAR — PANTALLAS DE ACCESO Y ESCENA ANIMADA
+   Referencias: video de la lámpara con cordón (movimiento), «PIAR LOGIN.png»
+   (composición) y «DAS PIAR.png» (identidad). La tarjeta es de cristal oscuro;
+   la escena es decorativa y su estado final es el estado base, así que sin
+   animaciones se ve completa y estática. El formulario nunca depende de ella.
+   ========================================================= */
+
+/* =========================
+   TONOS DE LUZ
+   --luz es un color RGB (separado por espacios) para usar rgb(var(--luz) / α).
+   Ingresar: lila. Registrarse: turquesa. El cordón alterna lila, turquesa y cálido.
+   ========================= */
+
+.auth-container {
+    --luz: 196 170 255;
 }
 
-.auth-card{
-    width:100%;
-    max-width:1250px;
-    min-height:720px;
-    background:#FFFDF8;
-    border:1px solid rgba(255,255,255,0.5);
-    border-radius:40px;
-    overflow:hidden;
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    box-shadow:0 25px 60px rgba(0,0,0,0.12);
-    animation:fadeUp 0.8s ease;
+.auth-container-register {
+    --luz: 32 201 195;
 }
 
-.auth-left{
-    background:linear-gradient(135deg,#17306F,#3454D1 58%,#6842E8);
-    color:white;
-    padding:90px 70px;
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
+.auth-container[data-tono="lila"] {
+    --luz: 196 170 255;
 }
 
-.auth-left h1{
-    font-size:5rem;
-    font-weight:700;
-    margin-bottom:30px;
+.auth-container[data-tono="turquesa"] {
+    --luz: 32 201 195;
 }
 
-.auth-left p{
-    font-size:1.3rem;
-    line-height:2;
-    opacity:0.94;
-    max-width:430px;
+.auth-container[data-tono="calida"] {
+    --luz: 255 206 145;
 }
 
-.auth-highlights{
-    display:flex;
-    flex-direction:column;
-    gap:14px;
-    margin-top:34px;
+/* =========================
+   ESTRUCTURA
+   ========================= */
+
+.auth-container {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(min(100%, 380px), 500px);
+    grid-template-areas: "escena tarjeta";
+    align-items: center;
+    gap: clamp(var(--espacio-6), 3vw, var(--espacio-10));
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: clamp(var(--espacio-5), 3.5vw, var(--espacio-12));
+    overflow: hidden;
+    background:
+        radial-gradient(ellipse 70% 60% at 25% 45%, #18205A 0%, transparent 70%),
+        linear-gradient(180deg, #0B1029 0%, var(--color-azul-noche) 55%, #0A0E26 100%);
+    color: var(--color-blanco);
 }
 
-.auth-highlights span{
-    display:flex;
-    align-items:center;
-    gap:12px;
-    width:max-content;
-    max-width:100%;
-    padding:12px 16px;
-    border-radius:16px;
-    background:rgba(255,255,255,0.12);
-    font-weight:600;
+.auth-container-register {
+    grid-template-columns: minmax(0, 1fr) minmax(min(100%, 380px), 680px);
 }
 
-.auth-right{
-    padding:64px 70px;
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
+/* Tarjeta de cristal oscuro con borde y halo del tono de la luz. */
+.auth-card {
+    position: relative;
+    z-index: 2;
+    grid-area: tarjeta;
+    width: 100%;
+    border: 1px solid rgb(var(--luz) / 0.38);
+    border-radius: 28px;
+    background:
+        linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02) 40%),
+        rgba(16, 22, 60, 0.8);
+    box-shadow:
+        0 30px 80px rgba(3, 5, 20, 0.6),
+        0 0 46px rgb(var(--luz) / 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    color: var(--color-blanco);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    backdrop-filter: blur(20px) saturate(140%);
+    transition: border-color 600ms ease, box-shadow 600ms ease;
+    animation: apareceTarjeta 700ms var(--curva-suave) 0.9s backwards;
 }
 
-.auth-tabs{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:8px;
-    padding:6px;
-    border-radius:18px;
-    background:#EEF2FF;
-    margin-bottom:28px;
-}
-
-.auth-tabs button{
-    padding:13px 16px;
-    border-radius:14px;
-    background:transparent;
-    color:var(--text-light);
-    font-weight:700;
-    cursor:pointer;
-    transition:0.25s;
-}
-
-.auth-tabs button.active{
-    background:white;
-    color:var(--primary-dark);
-    box-shadow:var(--shadow-sm);
-}
-
-.auth-title{
-    font-size:2.5rem;
-    font-weight:700;
-    color:var(--primary-dark);
-    margin-bottom:10px;
-}
-
-.auth-subtitle{
-    color:var(--text-light);
-    margin-bottom:32px;
-}
-
-.auth-form{
-    display:flex;
-    flex-direction:column;
-}
-
-.input-modern{
-    width:100%;
-    padding:18px 22px;
-    border:none;
-    border-radius:18px;
-    margin-bottom:18px;
-    background:white;
-    box-shadow:var(--shadow-sm);
-    font-size:15px;
-    transition:0.3s;
-}
-
-.input-modern:focus{
-    outline:none;
-    box-shadow:0 0 0 4px rgba(52,84,209,0.16);
-}
-
-.input-modern:hover{
-    transform:translateY(-1px);
-}
-
-.btn-modern{
-    width:100%;
-    padding:18px;
-    border-radius:18px;
-    background:linear-gradient(135deg,#3454D1,#17306F);
-    color:white;
-    font-weight:700;
-    font-size:16px;
-    transition:0.3s;
-    cursor:pointer;
-}
-
-.btn-modern:hover{
-    transform:translateY(-3px);
-    box-shadow:0 15px 30px rgba(52,84,209,0.25);
-}
-
-.auth-divider{
-    display:flex;
-    align-items:center;
-    gap:14px;
-    margin-top:22px;
-    color:var(--text-light);
-    font-size:14px;
-}
-
-.auth-divider:before,
-.auth-divider:after{
-    content:"";
-    height:1px;
-    flex:1;
-    background:var(--border);
-}
-
-.social-login{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:12px;
-    margin-top:18px;
-}
-
-.social-btn{
-    width:100%;
-    background:white;
-    border:1px solid var(--border);
-    border-radius:18px;
-    padding:16px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:12px;
-    transition:0.3s;
-    font-weight:700;
-    color:var(--text);
-    cursor:pointer;
-}
-
-.social-btn:hover{
-    background:#F8FAFF;
-    transform:translateY(-2px);
-}
-
-.google-btn i{
-    color:#DB4437;
-}
-
-.outlook-btn i{
-    color:#2563EB;
-}
-
-.auth-link{
-    margin-top:22px;
-    text-align:center;
-    color:var(--text-light);
-    font-size:14px;
-}
-
-.auth-link a{
-    color:var(--primary-dark);
-    font-weight:700;
-    margin-left:6px;
-}
-
-@keyframes fadeUp{
-    from{
-        opacity:0;
-        transform:translateY(30px);
-    }
-    to{
-        opacity:1;
-        transform:translateY(0);
+/* Aparece cuando se enciende la luz (video), sin ocultarse nunca del todo:
+   el formulario es usable desde el primer instante. */
+@keyframes apareceTarjeta {
+    from {
+        opacity: 0.3;
+        transform: translateY(12px) scale(0.985);
     }
 }
 
-@media(max-width:992px){
-    .auth-card{
-        grid-template-columns:1fr;
-    }
+.auth-right {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: var(--espacio-8) clamp(var(--espacio-5), 3.5vw, var(--espacio-10));
+}
 
-    .auth-left{
-        display:none;
-    }
+.auth-right-register {
+    padding-top: var(--espacio-6);
+    padding-bottom: var(--espacio-6);
+}
 
-    .auth-right{
-        padding:50px;
+/* =========================
+   MARCA (logotipo de DAS PIAR.png y PIAR LOGIN.png)
+   ========================= */
+
+.auth-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--espacio-3);
+    margin: 0 auto var(--espacio-5);
+}
+
+.auth-brand-mark {
+    display: block;
+    width: 74px;
+    height: 56px;
+    filter: drop-shadow(0 6px 14px rgba(100, 44, 232, 0.55));
+}
+
+.auth-brand-mark svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.auth-brand-name {
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+}
+
+.auth-brand-name small {
+    color: #E4DCFF;
+    font-size: var(--texto-sm);
+    font-weight: var(--peso-medio);
+    letter-spacing: 0.22em;
+}
+
+.auth-brand-name strong {
+    position: relative;
+    padding-bottom: var(--espacio-2);
+    background: linear-gradient(90deg, #FFFFFF 0%, #FFFFFF 40%, #D9CCFB 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-size: 2.2rem;
+    font-weight: var(--peso-negrita);
+    letter-spacing: 0.02em;
+}
+
+/* Trazo curvo bajo «PIAR», como en el logotipo de referencia. */
+.auth-brand-name strong::after {
+    content: "";
+    position: absolute;
+    right: -6px;
+    bottom: 0;
+    left: 10%;
+    height: 6px;
+    border-bottom: 2px solid var(--color-morado);
+    border-radius: 0 0 50% 50%;
+}
+
+.auth-brand-legend {
+    margin-top: calc(var(--espacio-2) * -1);
+    margin-bottom: var(--espacio-4);
+    color: #C9CDEB;
+    font-size: var(--texto-xs);
+    text-align: center;
+}
+
+/* =========================
+   PESTAÑAS (subrayado, como en el video)
+   ========================= */
+
+.auth-tabs {
+    display: flex;
+    gap: var(--espacio-6);
+    margin: var(--espacio-4) 0 var(--espacio-5);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.auth-tabs button {
+    position: relative;
+    min-height: 42px;
+    padding: var(--espacio-2) 0;
+    color: #B7BDE0;
+    font-weight: var(--peso-seminegrita);
+    transition: color var(--duracion-media);
+}
+
+.auth-tabs button::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 2px;
+    border-radius: 2px;
+    background: rgb(var(--luz));
+    transform: scaleX(0);
+    transition: transform var(--duracion-media) var(--curva-suave);
+}
+
+.auth-tabs button:hover,
+.auth-tabs button.active {
+    color: var(--color-blanco);
+}
+
+.auth-tabs button.active::after {
+    transform: scaleX(1);
+}
+
+.auth-title {
+    margin-bottom: var(--espacio-1);
+    color: var(--color-blanco);
+    font-size: clamp(1.45rem, 2.2vw, 1.8rem);
+    font-weight: var(--peso-seminegrita);
+    text-align: center;
+}
+
+.auth-subtitle {
+    margin: 0;
+    color: #D0D4F0;
+    text-align: center;
+}
+
+/* =========================
+   FORMULARIOS (variante oscura de los componentes)
+   ========================= */
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espacio-3);
+}
+
+.auth-form > p {
+    color: #D0D4F0;
+    font-size: var(--texto-sm);
+}
+
+.auth-form-login {
+    gap: var(--espacio-4);
+}
+
+.auth-form-register {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--espacio-3) var(--espacio-4);
+}
+
+.auth-form-register > .auth-submit {
+    grid-column: 1 / -1;
+}
+
+.auth-field {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--espacio-1);
+    min-width: 0;
+}
+
+/* En la rejilla del registro los campos no se estiran: el botón Mostrar queda dentro del campo. */
+.auth-form-register > .auth-field {
+    align-self: start;
+}
+
+.auth-card label,
+.auth-field > label {
+    color: #E4E7FA;
+    font-size: var(--texto-sm);
+    font-weight: var(--peso-medio);
+}
+
+.auth-card label:has(+ :is(input, select, textarea)[required])::after {
+    color: #FCA5A5;
+}
+
+.auth-card .input-modern {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--color-blanco);
+}
+
+.auth-card .input-modern::placeholder {
+    color: #AEB4D9;
+}
+
+.auth-card .input-modern:hover:not(:disabled):not([readonly]) {
+    border-color: rgba(255, 255, 255, 0.38);
+}
+
+.auth-card .input-modern:focus,
+.auth-card .input-modern:focus-visible {
+    border-color: rgb(var(--luz));
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 0 3px rgb(var(--luz) / 0.28);
+}
+
+/* La regla anterior usa el atajo background; aquí se restablecen repetición y posición. */
+.auth-card select.input-modern {
+    background-repeat: no-repeat;
+    background-position: right 0.85rem center;
+    background-size: 16px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23E4DCFF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+}
+
+/* Las opciones se despliegan sobre fondo claro del sistema operativo. */
+.auth-card select.input-modern option {
+    color: var(--color-texto);
+}
+
+.auth-card :focus-visible {
+    outline-color: var(--color-turquesa);
+}
+
+/* Campo con icono a la izquierda (sobre, candado), como en las referencias. */
+.auth-field-icon .input-modern {
+    padding-left: 2.6rem;
+}
+
+.auth-field-icon > i {
+    position: absolute;
+    bottom: 0;
+    left: 0.95rem;
+    display: flex;
+    align-items: center;
+    height: 44px;
+    color: #C9CDEB;
+    font-size: 1rem;
+    pointer-events: none;
+}
+
+.auth-password-field .input-modern {
+    padding-right: 5.5rem;
+}
+
+/* Botón Mostrar/Ocultar dentro del campo de contraseña. */
+.auth-password-toggle {
+    position: absolute;
+    right: var(--espacio-2);
+    bottom: 6px;
+    min-height: 32px;
+    padding: var(--espacio-1) var(--espacio-3);
+    border-radius: var(--radio-sm);
+    color: #E4DCFF;
+    font-size: var(--texto-xs);
+    font-weight: var(--peso-seminegrita);
+}
+
+.auth-password-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.auth-submit {
+    margin-top: var(--espacio-2);
+}
+
+.auth-submit i {
+    font-size: 1.1rem;
+}
+
+.auth-submit:disabled {
+    cursor: wait;
+}
+
+/* =========================
+   ENLACES Y MENSAJES
+   ========================= */
+
+.auth-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--espacio-1) var(--espacio-3);
+    margin-top: var(--espacio-4);
+}
+
+.auth-links-separator {
+    width: 1px;
+    height: 1.2rem;
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.auth-link {
+    margin-top: var(--espacio-3);
+    color: #C9CDEB;
+    font-size: var(--texto-sm);
+    text-align: center;
+}
+
+.auth-links .auth-link {
+    margin-top: 0;
+}
+
+.auth-link-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--espacio-2);
+    min-height: 36px;
+    padding: var(--espacio-1) var(--espacio-1);
+    color: var(--color-blanco);
+    font-size: var(--texto-sm);
+    font-weight: var(--peso-medio);
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 4px;
+    transition: text-decoration-color var(--duracion-rapida), color var(--duracion-rapida);
+}
+
+.auth-link-button i {
+    color: rgb(var(--luz));
+    font-size: 1.05rem;
+}
+
+.auth-link-button:hover {
+    text-decoration-color: currentColor;
+}
+
+.auth-link-secondary {
+    flex-basis: 100%;
+    justify-content: center;
+    color: #C9CDEB;
+    font-size: var(--texto-xs);
+}
+
+.auth-feedback {
+    min-height: 1.4em;
+    margin-top: var(--espacio-4);
+    color: #C9CDEB;
+    font-size: var(--texto-xs);
+}
+
+/* Nota informativa (también se usa dentro del sistema, sobre fondo claro). */
+.auth-status-note {
+    margin-top: var(--espacio-4);
+    padding: var(--espacio-3) var(--espacio-4);
+    border: 1px solid var(--color-info-borde);
+    border-radius: var(--radio-md);
+    background: #F6F8FF;
+    color: var(--color-texto);
+    font-size: var(--texto-sm);
+    font-weight: var(--peso-normal);
+    line-height: 1.55;
+}
+
+.auth-card .auth-status-note {
+    border-color: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.06);
+    color: #E4E7FA;
+}
+
+.auth-field .auth-status-note {
+    margin-top: var(--espacio-2);
+    font-size: var(--texto-xs);
+}
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: var(--espacio-3);
+    margin-top: var(--espacio-5);
+    color: #C9CDEB;
+    font-size: var(--texto-sm);
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.auth-divider-email {
+    margin: var(--espacio-5) 0 var(--espacio-3);
+    white-space: nowrap;
+}
+
+/* =========================
+   PROVEEDORES EXTERNOS
+   Botones blancos de la referencia, deshabilitados mientras el servidor
+   no confirme una configuración real.
+   ========================= */
+
+.auth-provider-options {
+    margin: 0;
+}
+
+.auth-provider-list {
+    display: grid;
+    gap: var(--espacio-2);
+}
+
+.auth-provider-button {
+    display: grid;
+    grid-template-columns: 1.6rem 1fr auto;
+    align-items: center;
+    gap: var(--espacio-3);
+    width: 100%;
+    min-height: 46px;
+    padding: var(--espacio-2) var(--espacio-4);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: var(--radio-md);
+    background: var(--color-blanco);
+    color: var(--color-texto);
+    text-align: left;
+    transition: transform var(--duracion-rapida), box-shadow var(--duracion-rapida);
+}
+
+.auth-provider-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.auth-provider-button:disabled {
+    background: #E9EBF5;
+    color: var(--color-neutro);
+}
+
+.auth-provider-button > i {
+    justify-self: center;
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.auth-provider-button:disabled > i {
+    opacity: 0.8;
+}
+
+.provider-google > i {
+    color: #4285F4;
+}
+
+.provider-microsoft > i {
+    color: #00A4EF;
+}
+
+.provider-apple > i {
+    color: #111827;
+}
+
+.auth-provider-label {
+    font-size: var(--texto-sm);
+    font-weight: var(--peso-seminegrita);
+}
+
+.auth-provider-name {
+    font-weight: var(--peso-seminegrita);
+}
+
+.auth-provider-badge {
+    padding: 0.1rem 0.55rem;
+    border-radius: var(--radio-completo);
+    background: rgba(23, 37, 84, 0.08);
+    color: var(--color-neutro);
+    font-size: 0.6875rem;
+    font-weight: var(--peso-seminegrita);
+    white-space: nowrap;
+}
+
+.auth-provider-status {
+    margin-top: var(--espacio-2);
+    color: #C9CDEB;
+    font-size: var(--texto-xs);
+    line-height: 1.45;
+    text-align: center;
+}
+
+/* =========================
+   ESCENA: HABITACIÓN
+   Fondo de PIAR LOGIN.png: estantería y planta desenfocadas, escritorio y polvo
+   que titila (video). La luz ambiental «se enciende» con la lámpara.
+   ========================= */
+
+.auth-scene {
+    grid-area: escena;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+}
+
+.auth-scene-room {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* La habitación ocupa todo el fondo de la pantalla, no solo la columna de la escena. */
+.auth-container > .auth-scene .auth-scene-room {
+    position: fixed;
+}
+
+.auth-room-shelf {
+    position: absolute;
+    top: 6%;
+    left: 0;
+    width: 15%;
+    height: 66%;
+    border-radius: 0 6px 6px 0;
+    background:
+        repeating-linear-gradient(180deg, transparent 0 31%, rgba(8, 10, 30, 0.95) 31% 33.3%),
+        repeating-linear-gradient(90deg, #3B2E8C 0 7%, #26306B 7% 12%, #4A2F9E 12% 17%, #1E2A5E 17% 23%, #5B3FB5 23% 27%, #222B63 27% 34%);
+    filter: blur(3px);
+    opacity: 0.4;
+}
+
+.auth-room-shelf-right {
+    right: 0;
+    left: auto;
+    width: 10%;
+    border-radius: 6px 0 0 6px;
+    opacity: 0.22;
+}
+
+.auth-room-plant {
+    position: absolute;
+    bottom: 22%;
+    left: 4%;
+    width: 13%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background:
+        radial-gradient(ellipse 30% 45% at 30% 40%, #2F6B4F 0 60%, transparent 62%),
+        radial-gradient(ellipse 28% 40% at 65% 35%, #2A5E47 0 60%, transparent 62%),
+        radial-gradient(ellipse 35% 30% at 50% 70%, #24513E 0 60%, transparent 62%);
+    filter: blur(6px);
+    opacity: 0.45;
+}
+
+.auth-room-desk {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 20%;
+    border-top: 1px solid rgb(var(--luz) / 0.25);
+    background: linear-gradient(180deg, #1B1646 0%, #0D0B26 100%);
+    box-shadow: 0 -30px 60px rgb(var(--luz) / 0.08);
+}
+
+/* Luz ambiental: se enciende con la lámpara y toma su tono. */
+.auth-room-ambient {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 45% 50% at 26% 62%, rgb(var(--luz) / 0.3), transparent 70%),
+        radial-gradient(ellipse 30% 30% at 75% 50%, rgb(var(--luz) / 0.1), transparent 70%);
+    transition: background 600ms ease;
+    animation: enciendeAmbiente 1100ms ease-out 0.8s backwards;
+}
+
+@keyframes enciendeAmbiente {
+    from {
+        opacity: 0;
     }
 }
 
-@media(max-width:560px){
-    .auth-container{
-        padding:14px;
+/* Polvo en suspensión que titila (video). */
+.auth-scene-dust span {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    opacity: 0.35;
+    animation: titila 4.5s ease-in-out infinite;
+}
+
+.auth-scene-dust span:nth-child(1) { top: 12%; left: 22%; animation-delay: 0.2s; }
+.auth-scene-dust span:nth-child(2) { top: 28%; left: 48%; animation-delay: 1.4s; }
+.auth-scene-dust span:nth-child(3) { top: 8%; left: 64%; animation-delay: 2.1s; }
+.auth-scene-dust span:nth-child(4) { top: 44%; left: 9%; animation-delay: 0.8s; }
+.auth-scene-dust span:nth-child(5) { top: 62%; left: 55%; animation-delay: 3s; }
+.auth-scene-dust span:nth-child(6) { top: 18%; left: 88%; animation-delay: 1.9s; }
+.auth-scene-dust span:nth-child(7) { top: 74%; left: 30%; animation-delay: 2.6s; }
+.auth-scene-dust span:nth-child(8) { top: 36%; left: 76%; animation-delay: 0.5s; }
+.auth-scene-dust span:nth-child(9) { top: 52%; left: 40%; animation-delay: 3.6s; }
+.auth-scene-dust span:nth-child(10) { top: 86%; left: 70%; animation-delay: 1.1s; }
+.auth-scene-dust span:nth-child(11) { top: 6%; left: 38%; animation-delay: 2.9s; }
+.auth-scene-dust span:nth-child(12) { top: 68%; left: 92%; animation-delay: 0.1s; }
+.auth-scene-dust span:nth-child(13) { top: 24%; left: 4%; animation-delay: 3.3s; }
+.auth-scene-dust span:nth-child(14) { top: 90%; left: 14%; animation-delay: 1.7s; }
+.auth-scene-dust span:nth-child(15) { top: 48%; left: 96%; animation-delay: 2.3s; }
+.auth-scene-dust span:nth-child(16) { top: 80%; left: 50%; animation-delay: 0.9s; }
+
+@keyframes titila {
+    50% {
+        opacity: 0.85;
+        transform: translateY(-6px);
+    }
+}
+
+/* =========================
+   ESCENA: ESCENARIO (600 × 450, posiciones en porcentajes)
+   Secuencia: tirón del cordón (0,35 s) → el foco parpadea y se enciende (0,7 s) →
+   la luz llena la habitación (0,8 s) → aparece la tarjeta (0,9 s) → se abre el
+   libro (1,2 s) → pasan tres hojas (2,2 s) → resplandor y personas (2,6 s) →
+   estela y partículas (2,8 s) → tarjetas de cristal (3 s) → lema (3,6 s).
+   ========================= */
+
+.auth-scene-stage {
+    position: relative;
+    width: min(100%, 680px);
+    aspect-ratio: 4 / 3;
+    container-type: inline-size;
+}
+
+.auth-scene-art,
+.auth-scene-lamp,
+.auth-scene-trail {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.auth-scene-art {
+    pointer-events: none;
+}
+
+.auth-luz-stop {
+    stop-color: rgb(var(--luz));
+}
+
+.auth-luz-stroke {
+    stroke: rgb(var(--luz));
+}
+
+/* ----- Lámpara ----- */
+
+.auth-lamp-body {
+    filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+}
+
+.auth-lamp-beam {
+    mix-blend-mode: screen;
+    animation: enciendeLuz 1100ms ease-out 0.7s backwards;
+}
+
+.auth-lamp-bulb {
+    animation: enciendeLuz 1100ms ease-out 0.7s backwards;
+}
+
+/* Parpadeo de encendido, como una bombilla real. */
+@keyframes enciendeLuz {
+    0% {
+        opacity: 0;
     }
 
-    .auth-card{
-        min-height:auto;
-        border-radius:24px;
+    16% {
+        opacity: 0.6;
     }
 
-    .auth-right{
-        padding:28px;
+    26% {
+        opacity: 0.1;
     }
 
-    .auth-title{
-        font-size:2rem;
+    44% {
+        opacity: 0.9;
     }
 
-    .social-login{
-        grid-template-columns:1fr;
+    54% {
+        opacity: 0.45;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+/* Cordón: botón real. Se estira al arrastrarlo y rebota al soltarlo (video). */
+.auth-lamp-cord {
+    --tiron: 0px;
+    position: absolute;
+    top: 24.6%;
+    left: calc(36.3% - 22px);
+    z-index: 3;
+    width: 44px;
+    height: 21%;
+    border-radius: var(--radio-md);
+    cursor: grab;
+    touch-action: none;
+    animation: tironAutomatico 650ms cubic-bezier(0.3, 1.6, 0.5, 1) 0.35s backwards;
+}
+
+.auth-lamp-cord:active {
+    cursor: grabbing;
+}
+
+.auth-lamp-cord-line {
+    position: absolute;
+    top: 0;
+    left: calc(50% - 1px);
+    width: 2px;
+    height: calc(100% - 14px + var(--tiron));
+    border-radius: 2px;
+    background: linear-gradient(180deg, rgb(var(--luz) / 0.9), #E4DCFF);
+    transition: height 450ms cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.auth-lamp-cord-knob {
+    position: absolute;
+    bottom: 0;
+    left: calc(50% - 7px);
+    width: 14px;
+    height: 18px;
+    border-radius: 7px 7px 9px 9px;
+    background: linear-gradient(180deg, #F3EEFF, rgb(var(--luz)));
+    box-shadow: 0 0 12px rgb(var(--luz) / 0.8);
+    transform: translateY(var(--tiron));
+    transition: transform 450ms cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.auth-lamp-cord:focus-visible {
+    outline: 3px solid var(--color-turquesa);
+    outline-offset: 2px;
+}
+
+.auth-lamp-cord-tug {
+    animation: tironCordon 600ms cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes tironAutomatico {
+    0% {
+        transform: translateY(0);
+    }
+
+    35% {
+        transform: translateY(26px);
+    }
+
+    100% {
+        transform: translateY(0);
+    }
+}
+
+@keyframes tironCordon {
+    35% {
+        transform: translateY(22px);
+    }
+}
+
+/* A la izquierda del cordón, donde no hay tarjetas de cristal. */
+.auth-lamp-hint {
+    position: absolute;
+    top: 41%;
+    right: calc(100% - 36.3% + 16px);
+    padding: 0.2rem 0.6rem;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: var(--radio-sm);
+    background: rgba(12, 16, 44, 0.85);
+    color: #E4E7FA;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    animation: muestraPista 6s ease 3.8s;
+}
+
+@keyframes muestraPista {
+    10%,
+    80% {
+        opacity: 1;
+    }
+}
+
+/* ----- Libro en 3D ----- */
+
+.auth-scene-desk {
+    position: absolute;
+    top: 61%;
+    left: 35%;
+    width: 60%;
+    height: 33%;
+    perspective: 1100px;
+    perspective-origin: 50% 0%;
+}
+
+.auth-scene-book {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform: rotateX(50deg) rotateZ(-4deg);
+    transform-style: preserve-3d;
+}
+
+.auth-book-back,
+.auth-book-page,
+.auth-book-leaf,
+.auth-book-cover {
+    position: absolute;
+    top: 0;
+    height: 100%;
+}
+
+/* Tapa trasera: borde morado bajo las páginas. */
+.auth-book-back {
+    top: -3%;
+    left: -1.5%;
+    width: 103%;
+    height: 106%;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #5B2BD6, var(--color-morado-profundo));
+    box-shadow: 0 30px 40px rgba(0, 0, 0, 0.5);
+    transform: translateZ(-1px);
+}
+
+.auth-book-page {
+    width: 50%;
+    padding: 4% 5%;
+    background-color: #FFFDF7;
+    background-image: linear-gradient(90deg, rgba(0, 0, 0, 0.12), transparent 18%);
+    transform: translateZ(2px);
+}
+
+.auth-book-page-left {
+    left: 0;
+    border-radius: 6px 1px 1px 6px;
+    background-image: linear-gradient(270deg, rgba(0, 0, 0, 0.16), transparent 18%);
+}
+
+.auth-book-page-right {
+    left: 50%;
+    border-radius: 1px 6px 6px 1px;
+}
+
+.auth-book-art {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* Hojas que pasan sobre el lomo y terminan bajo la página izquierda. */
+.auth-book-leaf {
+    left: 50%;
+    width: 49.5%;
+    border-radius: 1px 6px 6px 1px;
+    background: linear-gradient(90deg, #EFE9DB, #FFFDF7 30%);
+    transform-origin: 0 50%;
+    /* Planas a -180°: quedan bajo la página izquierda sin asomar por el borde. */
+    transform: rotateY(-180deg) translateZ(3px);
+    animation: pasaHoja 900ms cubic-bezier(0.45, 0.05, 0.3, 1) 2.2s backwards;
+}
+
+.auth-book-leaf:nth-child(5) {
+    transform: rotateY(-180deg) translateZ(4px);
+    animation-delay: 2.45s;
+}
+
+.auth-book-leaf:nth-child(6) {
+    transform: rotateY(-180deg) translateZ(5px);
+    animation-delay: 2.7s;
+}
+
+@keyframes pasaHoja {
+    from {
+        transform: rotateY(0deg) translateZ(3px);
+    }
+}
+
+/* Tapa: cubre el libro cerrado y se abre hacia la izquierda. */
+.auth-book-cover {
+    top: -3%;
+    left: 50%;
+    width: 51.5%;
+    height: 106%;
+    border-radius: 2px 8px 8px 2px;
+    background: linear-gradient(135deg, var(--color-morado), var(--color-morado-profundo) 60%, var(--color-azul));
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.14);
+    transform-origin: 0 50%;
+    transform: rotateY(-180deg) translateZ(7px);
+    animation: abreTapa 1400ms cubic-bezier(0.55, 0.05, 0.25, 1) 1.2s backwards;
+}
+
+@keyframes abreTapa {
+    from {
+        transform: rotateY(0deg) translateZ(7px);
+    }
+}
+
+/* ----- Resplandor y personas que surgen del libro (DAS PIAR.png) ----- */
+
+.auth-scene-glow {
+    position: absolute;
+    top: 40%;
+    left: 43%;
+    width: 44%;
+    height: 44%;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at 50% 72%, rgba(255, 255, 255, 0.85), rgb(var(--luz) / 0.55) 28%, rgb(var(--luz) / 0.18) 55%, transparent 72%);
+    mix-blend-mode: screen;
+    animation: saleResplandor 1300ms var(--curva-suave) 2.6s backwards, respiraResplandor 5s ease-in-out 4s infinite;
+}
+
+.auth-scene-people {
+    position: absolute;
+    bottom: 34%;
+    left: 34%;
+    width: 32%;
+    fill: rgba(255, 255, 255, 0.55);
+}
+
+@keyframes saleResplandor {
+    from {
+        opacity: 0;
+        transform: translateY(8%) scale(0.3);
+    }
+}
+
+@keyframes respiraResplandor {
+    50% {
+        opacity: 0.8;
+        transform: scale(1.04);
+    }
+}
+
+/* ----- Estela de luz y conector punteado ----- */
+
+.auth-trail-line {
+    stroke-dasharray: 520;
+    stroke-dashoffset: 0;
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.8));
+    animation: dibujaEstela 1300ms ease-out 2.8s backwards;
+}
+
+.auth-trail-dots {
+    animation: apareceSuave 900ms ease 3s backwards;
+}
+
+@keyframes dibujaEstela {
+    from {
+        stroke-dashoffset: 520;
+    }
+}
+
+@keyframes apareceSuave {
+    from {
+        opacity: 0;
+    }
+}
+
+/* ----- Partículas luminosas ----- */
+
+.auth-scene-particles {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 30%;
+    height: 26%;
+}
+
+.auth-scene-particles span {
+    position: absolute;
+    bottom: 0;
+    width: 1cqw;
+    height: 1cqw;
+    min-width: 3px;
+    min-height: 3px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    box-shadow: 0 0 1.4cqw 0.3cqw rgb(var(--luz) / 0.9);
+    opacity: 0.6;
+    transform: translateY(-16cqw);
+    animation: subeParticula 6s ease-out 2.8s infinite backwards;
+}
+
+.auth-scene-particles span:nth-child(4n) {
+    width: 0.6cqw;
+    height: 0.6cqw;
+}
+
+.auth-scene-particles span:nth-child(odd) {
+    transform: translateY(-27cqw);
+}
+
+.auth-scene-particles span:nth-child(3n + 1) {
+    transform: translateY(-8cqw);
+}
+
+.auth-scene-particles span:nth-child(1) { left: 6%; animation-delay: 2.8s; animation-duration: 6.4s; }
+.auth-scene-particles span:nth-child(2) { left: 16%; animation-delay: 3.7s; animation-duration: 5.6s; }
+.auth-scene-particles span:nth-child(3) { left: 25%; animation-delay: 3.1s; animation-duration: 7.2s; }
+.auth-scene-particles span:nth-child(4) { left: 33%; animation-delay: 4.6s; animation-duration: 6s; }
+.auth-scene-particles span:nth-child(5) { left: 41%; animation-delay: 2.9s; animation-duration: 5.2s; }
+.auth-scene-particles span:nth-child(6) { left: 48%; animation-delay: 4.2s; animation-duration: 6.8s; }
+.auth-scene-particles span:nth-child(7) { left: 55%; animation-delay: 3.4s; animation-duration: 5.8s; }
+.auth-scene-particles span:nth-child(8) { left: 62%; animation-delay: 5s; animation-duration: 7s; }
+.auth-scene-particles span:nth-child(9) { left: 68%; animation-delay: 3.2s; animation-duration: 6.2s; }
+.auth-scene-particles span:nth-child(10) { left: 75%; animation-delay: 4.4s; animation-duration: 5.4s; }
+.auth-scene-particles span:nth-child(11) { left: 82%; animation-delay: 3.6s; animation-duration: 6.6s; }
+.auth-scene-particles span:nth-child(12) { left: 90%; animation-delay: 5.4s; animation-duration: 5.9s; }
+.auth-scene-particles span:nth-child(13) { left: 45%; animation-delay: 5.8s; animation-duration: 7.4s; }
+.auth-scene-particles span:nth-child(14) { left: 58%; animation-delay: 6.4s; animation-duration: 6.1s; }
+
+@keyframes subeParticula {
+    0% {
+        opacity: 0;
+        transform: translateY(0) scale(0.6);
+    }
+
+    15% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(-40cqw) translateX(-2cqw) scale(1);
+    }
+}
+
+/* ----- Tarjetas de cristal con símbolos de inclusión (PIAR LOGIN.png) ----- */
+
+.auth-scene-tiles {
+    position: absolute;
+    inset: 0;
+}
+
+.auth-scene-tile {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    width: 11cqw;
+    height: 11cqw;
+    min-width: 34px;
+    min-height: 34px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 24%;
+    background: linear-gradient(150deg, rgba(255, 255, 255, 0.22), rgb(var(--luz) / 0.12));
+    box-shadow: 0 0 2.6cqw rgb(var(--luz) / 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    transform: rotate(-8deg);
+    animation: apareceTarjetaCristal 800ms var(--curva-suave) backwards, flotaTarjeta 7s ease-in-out infinite;
+}
+
+.auth-scene-tile svg {
+    width: 62%;
+    height: 62%;
+    fill: none;
+    stroke: #FFFFFF;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.auth-scene-tile:nth-child(1) { top: 50.9%; left: 38.2%; animation-delay: 3s, 3.8s; }
+.auth-scene-tile:nth-child(2) { top: 36.2%; left: 51.2%; animation-delay: 3.25s, 4.3s; }
+.auth-scene-tile:nth-child(3) { top: 26%; left: 66.2%; animation-delay: 3.5s, 4.8s; }
+.auth-scene-tile:nth-child(4) { top: 16.7%; left: 81.2%; animation-delay: 3.75s, 5.3s; }
+
+@keyframes apareceTarjetaCristal {
+    from {
+        opacity: 0;
+        transform: translateY(4cqw) rotate(-8deg) scale(0.6);
+    }
+}
+
+@keyframes flotaTarjeta {
+    50% {
+        transform: translateY(-1.2cqw) rotate(-6deg);
+    }
+}
+
+/* ----- Lema (DAS PIAR.png) ----- */
+
+.auth-scene-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--espacio-3);
+    margin-top: var(--espacio-2);
+    padding: var(--espacio-3) var(--espacio-5);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radio-lg);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-blanco);
+    font-size: var(--texto-lg);
+    font-weight: var(--peso-medio);
+    animation: apareceSuave 900ms ease 3.6s backwards;
+}
+
+.auth-scene-badge svg {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    fill: none;
+    stroke: rgb(var(--luz));
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Cambio de pestaña: la introducción ya se vio; solo quedan los bucles suaves. */
+.auth-scene-played .auth-room-ambient,
+.auth-scene-played .auth-lamp-beam,
+.auth-scene-played .auth-lamp-bulb,
+.auth-scene-played .auth-lamp-cord,
+.auth-scene-played .auth-lamp-hint,
+.auth-scene-played .auth-book-leaf,
+.auth-scene-played .auth-book-cover,
+.auth-scene-played .auth-trail-line,
+.auth-scene-played .auth-trail-dots,
+.auth-scene-played .auth-scene-badge {
+    animation: none;
+}
+
+.auth-scene-played .auth-scene-glow {
+    animation: respiraResplandor 5s ease-in-out infinite;
+}
+
+.auth-scene-played .auth-scene-tile {
+    animation: flotaTarjeta 7s ease-in-out infinite;
+}
+
+.auth-scene-played .auth-scene-particles span {
+    animation-delay: 0s;
+}
+
+.auth-container:has(.auth-scene-played) .auth-card {
+    animation: none;
+}
+
+/* Tras un rato se pausan los bucles para ahorrar recursos del equipo. */
+.auth-scene-rest .auth-scene-glow,
+.auth-scene-rest .auth-scene-tile,
+.auth-scene-rest .auth-scene-particles span,
+.auth-scene-rest .auth-scene-dust span {
+    animation-play-state: paused;
+}
+
+/* =========================
+   ADAPTACIÓN A PANTALLAS
+   ========================= */
+
+@media (max-width: 1100px) {
+    .auth-container,
+    .auth-container-register {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "escena"
+            "tarjeta";
+        justify-items: center;
+        align-content: start;
+        gap: 0;
+    }
+
+    .auth-card {
+        max-width: 520px;
+    }
+
+    .auth-card-register {
+        max-width: 680px;
+    }
+
+    .auth-scene {
+        width: min(100%, 560px);
+    }
+
+    .auth-scene-stage {
+        width: 100%;
+        margin-top: -6%;
+        margin-bottom: -14%;
+    }
+
+    .auth-scene-badge {
+        display: none;
+    }
+}
+
+@media (max-width: 560px) {
+    .auth-container {
+        padding: var(--espacio-3) var(--espacio-3) var(--espacio-6);
+    }
+
+    .auth-right {
+        padding: var(--espacio-6) var(--espacio-4);
+    }
+
+    .auth-brand-mark {
+        width: 60px;
+        height: 46px;
+    }
+
+    .auth-brand-name strong {
+        font-size: 1.8rem;
+    }
+
+    .auth-form-register {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* Acciones secundarias en columna: sin separador colgado y con área táctil de 44 px. */
+    .auth-links {
+        flex-direction: column;
+        gap: var(--espacio-1);
+    }
+
+    .auth-links-separator {
+        display: none;
+    }
+
+    .auth-link-button {
+        justify-content: center;
+        min-height: 44px;
+    }
+
+    .auth-room-shelf,
+    .auth-room-plant {
+        display: none;
+    }
+
+    .auth-lamp-hint {
+        display: none;
+    }
+}
+
+/* =========================
+   MOVIMIENTO REDUCIDO
+   Sin animaciones: escena final estática (luz encendida, libro abierto).
+   El cordón sigue cambiando el tono, sin movimiento.
+   ========================= */
+
+@media (prefers-reduced-motion: reduce) {
+    .auth-container *,
+    .auth-card {
+        animation: none !important;
+        transition: none !important;
     }
 }

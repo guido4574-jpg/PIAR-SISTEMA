@@ -1,309 +1,76 @@
 const API_CONFIG = window.PIAR_API_CONFIG || {};
-const API_BASE_URL = getApiBaseUrl();
-
-function getApiBaseUrl() {
-    if (API_CONFIG.mode === "external" && API_CONFIG.baseUrl) {
-        return API_CONFIG.baseUrl.replace(/\/$/, "");
-    }
-    return API_CONFIG.baseUrl; 
-}
+const API_BASE_URL = (API_CONFIG.baseUrl || window.location.origin).replace(/\/$/, "");
 
 function apiUrl(name) {
     const [baseName, ...suffix] = name.split("/");
     const endpoint = API_CONFIG.endpoints?.[baseName] || `/${baseName}`;
-    const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-    return `${API_BASE_URL}${normalizedEndpoint}${suffix.length ? `/${suffix.join("/")}` : ""}`;
-}
-
-function apiHeaders() {
-    const headers = {
-        "Content-Type": "application/json",
-        ...(API_CONFIG.headers || {})
-    };
-
-    if (API_CONFIG.token) {
-        headers.Authorization = API_CONFIG.token;
-    }
-
-    return headers;
-}
-
-function unwrapApiData(payload) {
-    if (!API_CONFIG.responseDataPath) {
-        return payload;
-    }
-
-    return API_CONFIG.responseDataPath.split(".").reduce((value, key) => value?.[key], payload);
-}
-
-async function apiGetData() {
-    const response = await fetch(apiUrl("data"), {
-        method: "GET",
-        headers: apiHeaders()
-    });
-
-    if (!response.ok) {
-        throw new Error("No se pudo cargar la informacion desde la API externa");
-    }
-
-    return adaptApiData(unwrapApiData(await response.json()));
+    const normalized = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+    return `${API_BASE_URL}${normalized}${suffix.length ? `/${suffix.join("/")}` : ""}`;
 }
 
 async function apiRequest(name, method, body) {
     const response = await fetch(apiUrl(name), {
         method,
         credentials: "include",
-        headers: apiHeaders(),
+        headers: { "Content-Type": "application/json" },
         ...(body === undefined ? {} : { body: JSON.stringify(body) })
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-        throw new Error(payload.message || "No se pudo completar la solicitud");
+        const error = new Error(payload.message || "No se pudo completar la solicitud");
+        error.status = response.status;
+        if (response.status === 401 && !["authLogin", "authRegister", "authMe", "authLogout", "authPasswordResetRequest", "authPasswordResetConfirm", "authEmailVerificationConfirm", "authEmailVerificationRequest", "authEmailChangeConfirm"].includes(name)) {
+            window.handleSessionExpired?.();
+        }
+        throw error;
     }
     return payload;
 }
 
-function apiRegister(data) {
-    return apiRequest("authRegister", "POST", data);
-}
-
-function apiLogin(data) {
-    return apiRequest("authLogin", "POST", data);
-}
-
-function apiLogout() {
-    return apiRequest("authLogout", "POST");
-}
-
-function apiCurrentUser() {
-    return apiRequest("authMe", "GET");
-}
-
-function apiList(name) {
-    return apiRequest(name, "GET");
-}
-
-function apiCreate(name, data) {
-    return apiRequest(name, "POST", data);
-}
-
-function apiUpdate(name, id, data) {
-    return apiRequest(`${name}/${id}`, "PUT", data);
-}
-
-function apiDelete(name, id) {
-    return apiRequest(`${name}/${id}`, "DELETE");
-}
-
-function apiGetUsers() {
-    return apiList("users");
-}
-
-function apiGetStudents() {
-    return apiList("students");
-}
-
-function apiGetTeachers() {
-    return apiList("teachers");
-}
-
-function apiGetPiars() {
-    return apiList("piar");
-}
-
-function apiGetPiar(id) {
-    return apiRequest(`piar/${id}`, "GET");
-}
-
-function apiGetDiagnostics() {
-    return apiList("diagnostics");
-}
-
-function apiGetDiagnostic(id) {
-    return apiRequest(`diagnostics/${id}`, "GET");
-}
-
-function apiCreateDiagnostic(data) {
-    return apiCreate("diagnostics", data);
-}
-
-function apiUpdateDiagnostic(id, data) {
-    return apiUpdate("diagnostics", id, data);
-}
-
-function apiDeleteDiagnostic(id) {
-    return apiDelete("diagnostics", id);
-}
-
-function apiGetFollowUps() {
-    return apiList("followUps");
-}
-
-function apiGetObservations() {
-    return apiList("observations");
-}
-
-function apiGetReports() {
-    return apiList("reports");
-}
-
-function apiGetDashboard() {
-    return apiList("dashboard");
-}
-
-async function apiSaveData(data) {
-    if (API_CONFIG.adapter === "jsonplaceholderUsers") {
-        return simulateExternalSave(data);
-    }
-
-    const response = await fetch(apiUrl("data"), {
-        method: "PUT",
-        headers: apiHeaders(),
-        body: JSON.stringify(data)
-    });
-
-    if (!response.ok) {
-        throw new Error("No se pudo guardar la informacion en la API externa");
-    }
-
-    return unwrapApiData(await response.json());
-}
-
-async function apiResetData() {
-    if (API_CONFIG.adapter === "jsonplaceholderUsers") {
-        return adaptApiData(await apiGetUsersForReset());
-    }
-
-    const response = await fetch(apiUrl("reset"), {
-        method: "POST",
-        headers: apiHeaders()
-    });
-
-    if (!response.ok) {
-        throw new Error("No se pudieron restaurar los datos desde la API externa");
-    }
-
-    return unwrapApiData(await response.json());
-}
+function apiRegister(data) { return apiRequest("authRegister", "POST", data); }
+function apiLogin(data) { return apiRequest("authLogin", "POST", data); }
+function apiChangeInitialPassword(password) { return apiRequest("authInitialPasswordChange", "POST", { password }); }
+function apiLogout() { return apiRequest("authLogout", "POST"); }
+function apiCurrentUser() { return apiRequest("authMe", "GET"); }
+function apiGetAppConfig() { return apiRequest("appConfig", "GET"); }
+function apiRequestPasswordReset(correo) { return apiRequest("authPasswordResetRequest", "POST", { correo }); }
+function apiConfirmPasswordReset(token, password) { return apiRequest("authPasswordResetConfirm", "POST", { token, password }); }
+function apiConfirmEmailVerification(token) { return apiRequest("authEmailVerificationConfirm", "POST", { token }); }
+function apiRequestEmailVerification(correo) { return apiRequest("authEmailVerificationRequest", "POST", { correo }); }
+function apiConfirmEmailChange(token) { return apiRequest("authEmailChangeConfirm", "POST", { token }); }
+function apiList(name) { return apiRequest(name, "GET"); }
+function apiCreate(name, data) { return apiRequest(name, "POST", data); }
+function apiUpdate(name, id, data) { return apiRequest(`${name}/${id}`, "PUT", data); }
+function apiDelete(name, id) { return apiRequest(`${name}/${id}`, "DELETE"); }
+// Decisión D5: identidades externas de la cuenta autenticada.
+function apiGetIdentities() { return apiList("authIdentities"); }
+function apiUnlinkIdentity(id, password) { return apiRequest(`authIdentities/${Number(id)}`, "DELETE", { password }); }
+function apiGetUsers() { return apiList("users"); }
+function apiDecideUserApproval(id, decision, reason) { return apiRequest(`users/${id}/aprobacion`, "POST", { decision, reason }); }
+function apiGetStudents() { return apiList("students"); }
+function apiGetTeachers() { return apiList("teachers"); }
+function apiGetPiars() { return apiList("piar"); }
+function apiGetPiar(id) { return apiRequest(`piar/${id}`, "GET"); }
+function apiGetPiarVersions(id) { return apiRequest(`piar/${Number(id)}/versiones`, "GET"); }
+function apiGetPiarVersion(id, versionId) { return apiRequest(`piar/${Number(id)}/versiones/${Number(versionId)}`, "GET"); }
+function apiGetDiagnostics() { return apiList("diagnostics"); }
+function apiGetDiagnostic(id) { return apiRequest(`diagnostics/${id}`, "GET"); }
+function apiCreateDiagnostic(data) { return apiCreate("diagnostics", data); }
+function apiUpdateDiagnostic(id, data) { return apiUpdate("diagnostics", id, data); }
+function apiDeleteDiagnostic(id) { return apiDelete("diagnostics", id); }
+function apiGetFollowUps() { return apiList("followUps"); }
+function apiGetObservations() { return apiList("observations"); }
+function apiGetReports() { return apiList("reports"); }
+function apiGetHistory() { return apiList("history"); }
+function apiGetDashboard() { return apiList("dashboard"); }
 
 async function apiHealth() {
     try {
-        const healthUrl = API_CONFIG.adapter === "jsonplaceholderUsers" ? apiUrl("data") : apiUrl("health");
-        const response = await fetch(healthUrl, {
-            method: "GET",
-            headers: apiHeaders()
-        });
+        const response = await fetch(apiUrl("health"), { method: "GET" });
         return response.ok;
     } catch {
         return false;
     }
 }
 
-function getApiLabel() {
-    if (API_CONFIG.mode === "external" && API_CONFIG.baseUrl) {
-        return "API externa";
-    }
-
-    return "API local";
-}
-
-function getApiConnectionMessage() {
-    if (API_CONFIG.adapter === "jsonplaceholderUsers") {
-        return "API externa de prueba conectada. Estudiantes cargados desde JSONPlaceholder; los cambios se guardan como respaldo local.";
-    }
-
-    return `${getApiLabel()} conectada. Los cambios se guardan fuera del navegador.`;
-}
-
-function adaptApiData(payload) {
-    if (API_CONFIG.adapter === "jsonplaceholderUsers") {
-        return adaptJsonPlaceholderUsers(payload);
-    }
-
-    return payload;
-}
-
-function adaptJsonPlaceholderUsers(users) {
-    const base = getLocalBaseData();
-    const discapacidades = base.discapacidades || ["Cognitiva", "Visual", "Auditiva", "Fisica"];
-    const grados = base.grados || ["6A", "6B", "7A", "7B"];
-
-    return {
-        ...base,
-        students: users.map((user, index) => ({
-            id: user.id,
-            nombres: getFirstNames(user.name),
-            apellidos: getLastNames(user.name),
-            documento: String(1000000000 + user.id),
-            fechaNacimiento: `201${index % 5}-0${(index % 8) + 1}-15`,
-            grado: grados[index % grados.length],
-            jornada: index % 2 === 0 ? "Manana" : "Tarde",
-            discapacidad: discapacidades[index % discapacidades.length],
-            diagnostico: `Registro de prueba importado desde JSONPlaceholder: ${user.company?.catchPhrase || "sin diagnostico definitivo"}.`,
-            estado: index % 3 === 0 ? "revision" : "activo",
-            acudiente: user.company?.name || "Acudiente por registrar",
-            telefono: user.phone || "Sin telefono",
-            contexto: `Direccion de referencia: ${user.address?.street || ""}, ${user.address?.city || ""}.`,
-            valoracion: "Valoracion pedagogica pendiente. Registro usado para probar consumo dinamico por Fetch API.",
-            fortalezas: ["Participacion en clase", "Seguimiento con apoyo"],
-            barreras: ["Informacion pendiente por completar", "Requiere caracterizacion institucional"],
-            apoyosRequeridos: ["Entrevista familiar", "Valoracion pedagogica inicial"],
-            actividadesCasa: "Completar ficha de caracterizacion y acuerdos con familia.",
-            email: user.email,
-            externalSource: "jsonplaceholder",
-            externalId: user.id
-        }))
-    };
-}
-
-function getLocalBaseData() {
-    const saved = localStorage.getItem("piar-control-data-v2");
-    if (saved) {
-        try {
-            const parsed = JSON.parse(saved);
-            return {
-                ...structuredClone(window.APP_DATA),
-                institution: parsed.institution || window.APP_DATA.institution,
-                auth: parsed.auth || window.APP_DATA.auth,
-                teachers: parsed.teachers || window.APP_DATA.teachers,
-                piars: parsed.piars || window.APP_DATA.piars,
-                reportTypes: parsed.reportTypes || window.APP_DATA.reportTypes,
-                discapacidades: parsed.discapacidades || window.APP_DATA.discapacidades,
-                grados: parsed.grados || window.APP_DATA.grados,
-                areas: parsed.areas || window.APP_DATA.areas
-            };
-        } catch {
-            return structuredClone(window.APP_DATA);
-        }
-    }
-
-    return structuredClone(window.APP_DATA);
-}
-
-function getFirstNames(name) {
-    const parts = name.split(" ");
-    return parts.slice(0, Math.max(1, Math.ceil(parts.length / 2))).join(" ");
-}
-
-function getLastNames(name) {
-    const parts = name.split(" ");
-    return parts.slice(Math.max(1, Math.ceil(parts.length / 2))).join(" ") || "Sin apellido";
-}
-
-function simulateExternalSave(data) {
-    localStorage.setItem("piar-control-data-v2", JSON.stringify(data));
-    return Promise.resolve(data);
-}
-
-async function apiGetUsersForReset() {
-    const response = await fetch(apiUrl("data"), {
-        method: "GET",
-        headers: apiHeaders()
-    });
-
-    if (!response.ok) {
-        throw new Error("No se pudo restaurar desde JSONPlaceholder");
-    }
-
-    return response.json();
-}
+function getApiLabel() { return "API institucional"; }

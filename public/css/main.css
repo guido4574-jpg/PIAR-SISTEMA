@@ -1,49 +1,259 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+/* =========================================================
+   SISTEMA DE DISEÑO PIAR — VARIABLES Y BASE
+   Identidad: «Educación que ilumina oportunidades».
+   Este archivo define los tokens (variables) y los estilos base.
+   Los componentes están en components.css; la maquetación en
+   dashboard.css y auth.css; los ajustes por tamaño de pantalla,
+   movimiento reducido e impresión en responsive.css.
+   ========================================================= */
 
-:root{
-
-    --primary:#3454D1;
-    --primary-dark:#17306F;
-
-    --background:#F4F7FB;
-    --cream:#FFF9F2;
-
-    --white:#FFFFFF;
-
-    --text:#182033;
-    --text-light:#667085;
-
-    --border:#DCE3EE;
-
-    --shadow-sm:0 5px 15px rgba(0,0,0,0.04);
-    --shadow-md:0 15px 35px rgba(123,77,255,0.12);
-
-    --radius-lg:30px;
-    --radius-md:20px;
-    --radius-sm:14px;
+/* Poppins alojada localmente (licencia SIL OFL 1.1, ver fonts/poppins/OFL.txt).
+   Solo el subconjunto latino: cubre tildes, ñ, ü, ¿ y ¡. */
+@font-face {
+    font-family: "Poppins";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("../fonts/poppins/poppins-latin-400-normal.woff2") format("woff2");
 }
 
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
+@font-face {
+    font-family: "Poppins";
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url("../fonts/poppins/poppins-latin-500-normal.woff2") format("woff2");
 }
 
-body{
-
-    font-family:'Poppins',sans-serif;
-
-    background:var(--background);
-
-    color:var(--text);
-
-    overflow-x:hidden;
+@font-face {
+    font-family: "Poppins";
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url("../fonts/poppins/poppins-latin-600-normal.woff2") format("woff2");
 }
 
-button{
-    border:none;
+@font-face {
+    font-family: "Poppins";
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("../fonts/poppins/poppins-latin-700-normal.woff2") format("woff2");
 }
 
-a{
-    text-decoration:none;
+:root {
+    /* ---------- Paleta institucional ---------- */
+    --color-morado: #642CE8;
+    --color-morado-profundo: #4320A8;
+    --color-azul: #263F83;
+    --color-azul-noche: #111A38;
+    --color-azul-desvanecido: #E9EDFF;
+    --color-fondo: #F5F6FC;
+    --color-blanco: #FFFFFF;
+    --color-texto: #172554;
+    --color-texto-secundario: #64748B;
+    /* Texto secundario sobre --color-fondo (el tono anterior no alcanza 4,5:1 allí). */
+    --color-texto-secundario-fondo: #556276;
+    /* Turquesa: solo acentos y elementos decorativos; no usar como color de texto sobre blanco. */
+    --color-turquesa: #20C9C3;
+
+    /* ---------- Tonos de apoyo derivados ---------- */
+    --color-morado-suave: #F3EEFF;
+    --color-morado-borde: #D9CCFB;
+    --color-turquesa-oscuro: #0B7C78;
+    --color-superficie: var(--color-blanco);
+    --color-superficie-suave: #F8F6FF;
+    --color-borde: #DDE2F0;
+    --color-borde-suave: #E8EBF5;
+    --color-borde-fuerte: #B9C1D9;
+    --color-placeholder: #6B7689;
+
+    /* ---------- Estados ---------- */
+    --color-exito: #166534;
+    --color-exito-fondo: #DCFCE7;
+    --color-exito-borde: #86EFAC;
+    --color-advertencia: #92400E;
+    --color-advertencia-fondo: #FEF3C7;
+    --color-advertencia-borde: #FCD34D;
+    --color-error: #991B1B;
+    --color-error-fondo: #FEE2E2;
+    --color-error-borde: #FCA5A5;
+    --color-info: var(--color-azul);
+    --color-info-fondo: var(--color-azul-desvanecido);
+    --color-info-borde: #C3CDF6;
+    --color-neutro: #3F4A63;
+    --color-neutro-fondo: #E8EAF2;
+
+    /* ---------- Degradados ---------- */
+    --degradado-primario: linear-gradient(135deg, var(--color-morado) 0%, var(--color-morado-profundo) 60%, var(--color-azul) 100%);
+    --degradado-menu: linear-gradient(180deg, var(--color-azul-noche) 0%, #1A2150 55%, #2A1C6B 100%);
+    --degradado-acento: linear-gradient(90deg, var(--color-morado) 0%, var(--color-turquesa) 100%);
+
+    /* ---------- Tipografía ---------- */
+    --fuente-base: "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --texto-xs: 0.75rem;
+    --texto-sm: 0.875rem;
+    --texto-base: 1rem;
+    --texto-lg: 1.125rem;
+    --texto-xl: 1.25rem;
+    --texto-2xl: 1.5rem;
+    --texto-3xl: 1.875rem;
+    --texto-4xl: 2.25rem;
+    --peso-normal: 400;
+    --peso-medio: 500;
+    --peso-seminegrita: 600;
+    --peso-negrita: 700;
+    --interlineado-ajustado: 1.25;
+    --interlineado-base: 1.55;
+
+    /* ---------- Espaciado (escala de 4 px) ---------- */
+    --espacio-1: 0.25rem;
+    --espacio-2: 0.5rem;
+    --espacio-3: 0.75rem;
+    --espacio-4: 1rem;
+    --espacio-5: 1.25rem;
+    --espacio-6: 1.5rem;
+    --espacio-8: 2rem;
+    --espacio-10: 2.5rem;
+    --espacio-12: 3rem;
+
+    /* ---------- Radios ---------- */
+    --radio-sm: 8px;
+    --radio-md: 12px;
+    --radio-lg: 16px;
+    --radio-xl: 22px;
+    --radio-completo: 999px;
+
+    /* ---------- Sombras ---------- */
+    --sombra-sm: 0 1px 2px rgba(17, 26, 56, 0.05), 0 2px 6px rgba(17, 26, 56, 0.06);
+    --sombra-md: 0 8px 24px rgba(17, 26, 56, 0.09);
+    --sombra-lg: 0 20px 44px rgba(17, 26, 56, 0.16);
+    --sombra-morada: 0 12px 26px rgba(100, 44, 232, 0.24);
+
+    /* ---------- Foco ---------- */
+    --color-foco: var(--color-morado);
+    --color-foco-oscuro: var(--color-turquesa);
+    --anillo-foco: 0 0 0 3px rgba(100, 44, 232, 0.28);
+
+    /* ---------- Movimiento ---------- */
+    --duracion-rapida: 150ms;
+    --duracion-media: 250ms;
+    --duracion-lenta: 400ms;
+    --curva-suave: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+    /* ---------- Capas ---------- */
+    --capa-menu: 900;
+    --capa-desplegable: 950;
+    --capa-modal: 1000;
+    --capa-aviso: 1100;
+
+    /* ---------- Alias heredados ----------
+       Nombres anteriores que aún usan auth.css y dashboard.css.
+       Apuntan a los tokens nuevos; se retirarán al rediseñar cada pantalla. */
+    --primary: var(--color-morado);
+    --primary-dark: var(--color-morado-profundo);
+    --background: var(--color-fondo);
+    --cream: var(--color-superficie-suave);
+    --white: var(--color-blanco);
+    --text: var(--color-texto);
+    --text-light: var(--color-texto-secundario);
+    --border: var(--color-borde);
+    --shadow-sm: var(--sombra-sm);
+    --shadow-md: var(--sombra-md);
+    --radius-lg: var(--radio-xl);
+    --radius-md: var(--radio-lg);
+    --radius-sm: var(--radio-md);
+}
+
+/* =========================
+   BASE
+   ========================= */
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+body {
+    min-height: 100vh;
+    font-family: var(--fuente-base);
+    font-size: var(--texto-base);
+    line-height: var(--interlineado-base);
+    background: var(--color-fondo);
+    color: var(--color-texto);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4 {
+    line-height: var(--interlineado-ajustado);
+    color: var(--color-texto);
+}
+
+img,
+svg,
+canvas {
+    max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+    color: inherit;
+}
+
+button {
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+button:disabled {
+    cursor: not-allowed;
+}
+
+a {
+    color: var(--color-morado);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+::selection {
+    background: rgba(100, 44, 232, 0.18);
+}
+
+/* Foco visible y consistente en toda la interfaz. */
+:focus-visible {
+    outline: 3px solid var(--color-foco);
+    outline-offset: 2px;
+}
+
+/* Texto solo para lectores de pantalla. */
+.visually-hidden {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
