@@ -1,6 +1,6 @@
 # Estado final del proyecto PIAR-SISTEMA
 
-Fecha: 2026-11-22 (cierre de la entrega) · Rama `security/fase-1-hardening` · **Siete commits locales; nada publicado (`push`) ni desplegado.** Railway no se ha desplegado ni probado.
+Fecha: 2026-11-22 (cierre de la entrega) · Rama `security/fase-1-hardening` · **Ocho commits locales (los siete del plan y una corrección de finales de línea); nada publicado (`push`) ni desplegado.** Railway no se ha desplegado ni probado.
 
 Los procedimientos ejecutables de lo pendiente, con su orden y sus verificaciones, están en `docs/PROCEDIMIENTOS_PENDIENTES.md`. El inventario actualizado de los elementos de ensayo está en su §I; la §4 de este documento es la versión anterior.
 
@@ -71,7 +71,7 @@ Resultados de las pruebas: `docs/MATRIZ_PRUEBAS_PIAR.md`.
 3. **`TRUSTED_PROXIES`:** verificar el rango del proxy de Railway después del primer despliegue.
 4. **Repositorio:**
    - rotar la credencial antigua que sigue en el historial de `origin/main` y decidir la limpieza del historial (`docs/PROCEDIMIENTOS_PENDIENTES.md` §B);
-   - `push` de los siete commits locales, con autorización;
+   - `push` de los ocho commits locales, con autorización;
    - el correo real de la Administradora ya no está en los archivos versionados: el *bootstrap* lo toma de `PIAR_BOOTSTRAP_ADMIN_EMAIL` y la cuenta 178 no cambió.
 5. **`piar_test`:**
    - aplicar la 016 (ensayada en la copia);
@@ -105,7 +105,7 @@ Comandos de limpieza, para ejecutar solo con autorización:
 ## 5. Autorizaciones necesarias
 
 1. Operaciones en Railway: crear la base y sus cuentas, migrar, trasladar la cuenta 178, configurar variables y desplegar.
-2. `push` y fusión de los siete commits locales.
+2. `push` y fusión de los ocho commits locales.
 3. Rotación de la credencial antigua y, si se decide, la reescritura del historial.
 4. Prueba real de envío de correo.
 5. Aplicar la 016 en `piar_test` y reiniciar el backend de 8090.

@@ -55,6 +55,7 @@ Solo se repitió lo que cambió después de la segunda revisión: la retirada de
 | `npm run check:secrets` | Sin hallazgos en 230 archivos (el correo real de la Administradora ya no está en archivos versionables) |
 | Backend final (puerto 8096, contra `piar_test`, sin purga) + interfaz real en Chrome, a 1440 y 390 px | Acceso, registro (4 perfiles), mostrar contraseña y recuperación funcionan con la delegación de eventos y la CSP sin `'unsafe-inline'`. 0 excepciones, 0 desbordamientos, 0 textos «undefined/null/NaN», 0 peticiones distintas de GET (solo `/api/config` y `/api/auth/me`). Únicos errores: el 401 esperado de `/api/auth/me` |
 | Huella de `piar_test` antes y después de esa revisión | Idéntica (27 tablas, `CHECKSUM TABLE … EXTENDED`) |
+| Contenido commiteado, extraído en una copia limpia | Primer intento: 335 de 337. En Windows, `core.autocrlf` convertía los archivos a CRLF y 2 pruebas que comparan texto exacto fallaban. Corregido con `* text=auto eol=lf` en `.gitattributes`. Resultado: **337 de 337** |
 
 ## 3. Cobertura funcional con MySQL real
 

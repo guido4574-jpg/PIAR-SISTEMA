@@ -1,4 +1,5 @@
-* text=auto
+# El código se escribe y se prueba con LF; así un clon en Windows (core.autocrlf=true) no lo convierte a CRLF.
+* text=auto eol=lf
 *.png binary
 *.jpg binary
 *.jpeg binary

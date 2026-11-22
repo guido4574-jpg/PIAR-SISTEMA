@@ -31,7 +31,7 @@ La rama `security/fase-1-hardening` tiene 221 rutas pendientes: 1 preparada (el 
 - `npm test` en verde;
 - `npm run check:secrets` sin hallazgos (cumplido el 2026-11-22 tras resolver la sección J.1).
 
-**Estado:** los siete commits se hicieron en local el 2026-11-22 (`git log --oneline -8`). Falta el `push` 🔒.
+**Estado:** el 2026-11-22 se hicieron en local los siete commits y un octavo, `repo: fija finales de línea LF`, que evita que un clon en Windows convierta el código a CRLF (eso rompía 2 pruebas). Se ve con `git log --oneline -9`. Falta el `push` 🔒.
 
 **Mensaje de cada commit:** el título del grupo, una línea en blanco y la línea `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
