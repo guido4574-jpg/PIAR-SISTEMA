@@ -192,6 +192,15 @@ node scripts/verificar-produccion.js
 
 ## 7. Correo
 
+### 7.0 Sin proveedor todavía: `EMAIL_TRANSPORT=desactivado`
+Es un modo explícito para publicar antes de tener una clave de Resend:
+- el servidor arranca con una advertencia y ningún correo sale del servidor;
+- la verificación, la recuperación y los avisos fallan de forma controlada: la respuesta pública no cambia y el enlace se invalida;
+- la Administradora 178, ya verificada, entra con normalidad;
+- las cuentas nuevas quedan pendientes hasta que se active un proveedor.
+
+Para activar Resend se cambian `EMAIL_TRANSPORT=resend`, `EMAIL_FROM` y `RESEND_API_KEY` (§7.1).
+
 ### 7.1 Resend (opción vigente, D9)
 Datos de la documentación oficial de Resend, consultada el 2026-11-22: [Envío](https://resend.com/docs/api-reference/emails/send-email), [Errores](https://resend.com/docs/api-reference/errors), [Dominios](https://resend.com/docs/dashboard/domains/introduction), [Precios](https://resend.com/pricing).
 

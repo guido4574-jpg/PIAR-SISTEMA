@@ -265,3 +265,35 @@ test("flujos existentes con Resend caído: respuestas públicas iguales y enlace
         assert.equal(await notifyRegistrationDecision("rechazar", { correo: "eli@example.invalid", nombre: "Eli", rol: "Docente" }, { baseUrl: "https://piar.example.invalid" }), "no_enviada");
     }));
 });
+
+test("correo desactivado: arranque permitido con advertencia, envíos rechazados sin red y bootstrap estricto", async t => {
+    const api = await fakeResend(() => ({ status: 200, json: { id: "no-debe-usarse" } }));
+    t.after(api.close);
+    await withEnv({ NODE_ENV: "test", EMAIL_TRANSPORT: "desactivado", RESEND_API_KEY: FAKE_KEY, RESEND_API_BASE_URL: api.url, EMAIL_FROM: "piar@example.invalid" }, () =>
+        assert.rejects(email.deliverEmail("persona@example.invalid", "A", "B"), /está desactivado/));
+    assert.equal(api.requests.length, 0, "ningún correo sale del servidor");
+    const production = {
+        NODE_ENV: "production", APP_BASE_URL: "https://piar.example.invalid", CORS_ORIGIN: "https://piar.example.invalid",
+        DB_HOST: "mysql.railway.internal", DB_NAME: "piar_produccion", TRUSTED_PROXIES: "100.64.0.0/10", RATE_LIMIT_STORE: "mysql", EMAIL_TRANSPORT: "desactivado"
+    };
+    const warnings = assertRuntimeConfig(production);
+    assert.ok(warnings.some(item => /EMAIL_TRANSPORT=desactivado/.test(item)));
+    assert.throws(() => email.assertPersistentEmailTransport({ EMAIL_TRANSPORT: "desactivado" }), /Configura un transporte/);
+    assert.throws(() => assertRuntimeConfig({ ...production, EMAIL_TRANSPORT: "" }), /EMAIL_TRANSPORT=resend/);
+});
+
+test("correo desactivado: registro y recuperación mantienen la respuesta pública e invalidan el enlace", async () => {
+    const auth = require("../backend/auth");
+    await captureConsoleError(() => withEnv({ NODE_ENV: "test", EMAIL_TRANSPORT: "desactivado", APP_BASE_URL: "https://piar.example.invalid" }, async () => {
+        const registrationDb = dbWith(async sql => {
+            if (sql.startsWith("SELECT id_usuario")) return [[]];
+            if (sql.startsWith("INSERT INTO usuario")) return [{ insertId: 53 }];
+            return [{ affectedRows: 1 }];
+        });
+        assert.equal((await auth.register(registrationDb, { nombre: "Fe", apellidos: "Docente", documento: "OFF-1", correo: "fe@example.invalid", password: "Frase sintetica desactivado 2026", rol: "Docente" })).status, 202);
+        assert.ok(registrationDb.statements.some(item => /UPDATE verificacion_correo SET consumed_at/.test(item.sql)));
+        const resetDb = dbWith(async sql => sql.startsWith("SELECT id_usuario, correo FROM usuario") ? [[{ id_usuario: 53, correo: "fe@example.invalid" }]] : [{ affectedRows: 1 }]);
+        assert.equal((await auth.requestPasswordReset(resetDb, "fe@example.invalid")).status, 200);
+        assert.ok(resetDb.statements.some(item => /UPDATE recuperacion_contrasena SET consumed_at/.test(item.sql)));
+    }));
+});

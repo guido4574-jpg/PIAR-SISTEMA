@@ -56,7 +56,12 @@ function productionConfigReport(env = process.env) {
     const dbName = String(env.DB_NAME || "").trim().toLowerCase();
     if (/^piar_(test|dev)(_|$)/.test(dbName)) errors.push("DB_NAME no puede ser un esquema de pruebas o desarrollo en producción.");
 
-    try { assertPersistentEmailTransport(env); } catch {
+    const emailMode = String(env.EMAIL_TRANSPORT || "").trim().toLowerCase();
+    if (emailMode === "desactivado") {
+        // Permitido solo como decisión explícita: el sistema funciona, pero no entrega enlaces de
+        // verificación, recuperación ni avisos. Las cuentas nuevas quedan pendientes de verificar.
+        warnings.push("EMAIL_TRANSPORT=desactivado: no se envían correos; las cuentas nuevas no pueden verificar su correo ni recuperar la contraseña.");
+    } else try { assertPersistentEmailTransport(env); } catch {
         errors.push("El correo debe usar EMAIL_TRANSPORT=resend (RESEND_API_KEY, EMAIL_FROM), smtp (EMAIL_SMTP_*, EMAIL_FROM) o api con HTTPS; memory no está permitido.");
     }
     if (String(env.EMAIL_TRANSPORT || "").trim().toLowerCase() === "resend" && /@resend\.dev$/i.test(String(env.EMAIL_FROM || "").trim())) {

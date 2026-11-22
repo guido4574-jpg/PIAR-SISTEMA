@@ -52,6 +52,9 @@ function assertPersistentEmailTransport(env = process.env) {
 async function deliverEmail(to, subject, text) {
     validateMessage(to, subject, text);
     const mode = String(process.env.EMAIL_TRANSPORT || "api").toLowerCase();
+    // Modo explícito sin proveedor: ningún correo sale del servidor y cada envío falla de forma
+    // controlada (los flujos existentes invalidan el enlace y mantienen la respuesta pública).
+    if (mode === "desactivado") throw new Error("El envío de correo está desactivado (EMAIL_TRANSPORT=desactivado).");
     if (mode === "memory") return sendMemory(to, subject, text);
     if (mode === "smtp") return sendSmtp(to, subject, text);
     if (mode === "resend") return sendResend(to, subject, text);
