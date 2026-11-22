@@ -1,4 +1,4 @@
--- PIAR base schema for an empty Railway MySQL database.
+-- PIAR initial schema, retained as a database migration and used by local tests.
 -- Non-destructive: no CREATE DATABASE, USE, DROP, TRUNCATE, DELETE, or seed data.
 -- Run inside the database provided by DB_NAME / MYSQLDATABASE.
 
@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS usuario (
     rol VARCHAR(30) NOT NULL DEFAULT 'Docente',
     contrasena VARCHAR(255) NOT NULL DEFAULT '',
     password_hash VARCHAR(255) NULL,
-    estado VARCHAR(20) NOT NULL DEFAULT 'activo',
+    estado VARCHAR(30) NOT NULL DEFAULT 'activo',
+    correo_verificado_at DATETIME NULL,
     ultimo_acceso_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -36,6 +37,34 @@ CREATE TABLE IF NOT EXISTS sesion_usuario (
     KEY idx_sesion_usuario_expires (expires_at),
     CONSTRAINT fk_sesion_usuario_usuario
         FOREIGN KEY (id_usuario) REFERENCES usuario (id_usuario)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS verificacion_correo (
+    id_verificacion BIGINT NOT NULL AUTO_INCREMENT,
+    id_usuario INT NOT NULL,
+    token_hash CHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    consumed_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_verificacion),
+    UNIQUE KEY uq_verificacion_correo_token_hash (token_hash),
+    KEY idx_verificacion_correo_usuario (id_usuario),
+    KEY idx_verificacion_correo_expira (expires_at),
+    CONSTRAINT fk_verificacion_correo_usuario FOREIGN KEY (id_usuario) REFERENCES usuario (id_usuario)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS recuperacion_contrasena (
+    id_recuperacion BIGINT NOT NULL AUTO_INCREMENT,
+    id_usuario INT NOT NULL,
+    token_hash CHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    consumed_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_recuperacion),
+    UNIQUE KEY uq_recuperacion_token_hash (token_hash),
+    KEY idx_recuperacion_usuario (id_usuario),
+    KEY idx_recuperacion_expira (expires_at),
+    CONSTRAINT fk_recuperacion_usuario FOREIGN KEY (id_usuario) REFERENCES usuario (id_usuario)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS estudiante (
@@ -126,6 +155,11 @@ CREATE TABLE IF NOT EXISTS piar (
     estrategias TEXT NULL,
     informes_salud TEXT NULL,
     proyectos TEXT NULL,
+    actividades_receso TEXT NULL,
+    otra_informacion TEXT NULL,
+    acta_acuerdos TEXT NULL,
+    informe_anual TEXT NULL,
+    entrega_pedagogica TEXT NULL,
     fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     fecha_revision DATE NULL,
     fecha_cierre DATETIME NULL,
@@ -316,4 +350,18 @@ CREATE TABLE IF NOT EXISTS reporte (
         FOREIGN KEY (id_piar) REFERENCES piar (id_piar),
     CONSTRAINT fk_reporte_usuario
         FOREIGN KEY (id_usuario) REFERENCES usuario (id_usuario)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS piar_auditoria (
+    id_evento BIGINT NOT NULL AUTO_INCREMENT,
+    actor_user_id INT NULL,
+    action VARCHAR(12) NOT NULL,
+    resource_type VARCHAR(40) NOT NULL,
+    resource_id BIGINT NULL,
+    result VARCHAR(12) NOT NULL,
+    http_status SMALLINT NOT NULL,
+    occurred_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_evento),
+    KEY idx_piar_auditoria_actor_time (actor_user_id, occurred_at),
+    KEY idx_piar_auditoria_resource_time (resource_type, resource_id, occurred_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -1,21 +1,27 @@
 require("./config");
 
 const mysql = require("mysql2");
+const { buildDatabaseConfig } = require("./database-config");
+const config = buildDatabaseConfig(process.env);
+if (config.database.toLowerCase() === "piar") {
+    throw new Error("El esquema 'piar' está bloqueado por seguridad; configure una base local con un nombre explícito y aislado.");
+}
 
 const db = mysql.createPool({
-    host: process.env.DB_HOST || "127.0.0.1",
-    user: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD || "",
-    database: process.env.DB_NAME || "piar",
-    port: Number(process.env.DB_PORT || 3306),
+    host: config.host,
+    user: config.user,
+    password: config.password,
+    database: config.database,
+    port: config.port,
     waitForConnections: true,
-    connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
-    queueLimit: 0
+    connectionLimit: config.connectionLimit,
+    queueLimit: 0,
+    ...(config.ssl ? { ssl: config.ssl } : {})
 });
 
 db.query("SELECT 1", (error) => {
     if (error) {
-        console.error("Error de conexión a MySQL:", error.message);
+        console.error("Error de conexión a MySQL:", error.code || error.name || "ERROR");
         return;
     }
 

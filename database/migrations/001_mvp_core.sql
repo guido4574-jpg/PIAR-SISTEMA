@@ -8,6 +8,43 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- The tables sesion_usuario and piar are expected to exist from previous approved stages.
 -- This migration intentionally does not recreate them.
 
+CREATE TABLE IF NOT EXISTS recuperacion_contrasena (
+    id_recuperacion BIGINT NOT NULL AUTO_INCREMENT,
+    id_usuario INT NOT NULL,
+    token_hash CHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    consumed_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_recuperacion),
+    UNIQUE KEY uq_recuperacion_token_hash (token_hash),
+    KEY idx_recuperacion_usuario (id_usuario),
+    KEY idx_recuperacion_expira (expires_at),
+    CONSTRAINT fk_recuperacion_usuario FOREIGN KEY (id_usuario) REFERENCES usuario (id_usuario)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS verificacion_correo (
+    id_verificacion BIGINT NOT NULL AUTO_INCREMENT,
+    id_usuario INT NOT NULL,
+    token_hash CHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    consumed_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_verificacion),
+    UNIQUE KEY uq_verificacion_correo_token_hash (token_hash),
+    KEY idx_verificacion_correo_usuario (id_usuario),
+    KEY idx_verificacion_correo_expira (expires_at),
+    CONSTRAINT fk_verificacion_correo_usuario FOREIGN KEY (id_usuario) REFERENCES usuario (id_usuario)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+SET @sql = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE usuario ADD COLUMN correo_verificado_at DATETIME NULL',
+        'SELECT 1')
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuario' AND COLUMN_NAME = 'correo_verificado_at'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 CREATE TABLE IF NOT EXISTS piar_docente (
     id_piar INT NOT NULL,
     id_docente INT NOT NULL,
@@ -57,7 +94,7 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @sql = (
     SELECT IF(COUNT(*) = 0,
-        'ALTER TABLE usuario ADD COLUMN estado VARCHAR(20) NOT NULL DEFAULT ''activo''',
+        'ALTER TABLE usuario ADD COLUMN estado VARCHAR(30) NOT NULL DEFAULT ''activo''',
         'SELECT 1')
     FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuario' AND COLUMN_NAME = 'estado'
@@ -691,7 +728,17 @@ SET @sql = (SELECT IF(COUNT(*) = 0, 'ALTER TABLE reporte ADD KEY idx_reporte_est
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Add foreign keys only when the named constraint is missing.
+SET @sql = (SELECT IF(COUNT(*) = 0, 'ALTER TABLE usuario ADD COLUMN aprobado_por_usuario_id INT NULL', 'SELECT 1') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuario' AND COLUMN_NAME = 'aprobado_por_usuario_id');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = (SELECT IF(COUNT(*) = 0, 'ALTER TABLE usuario ADD COLUMN rechazado_por_usuario_id INT NULL', 'SELECT 1') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuario' AND COLUMN_NAME = 'rechazado_por_usuario_id');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = (SELECT IF(COUNT(*) = 0, 'ALTER TABLE usuario ADD COLUMN decision_at DATETIME NULL', 'SELECT 1') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuario' AND COLUMN_NAME = 'decision_at');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 SET @sql = (SELECT IF(COUNT(*) = 0, 'ALTER TABLE docente ADD CONSTRAINT fk_docente_usuario FOREIGN KEY (id_usuario) REFERENCES usuario (id_usuario)', 'SELECT 1') FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'docente' AND CONSTRAINT_NAME = 'fk_docente_usuario');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = (SELECT IF(COUNT(*) = 0, 'ALTER TABLE usuario ADD CONSTRAINT fk_usuario_aprobado_por FOREIGN KEY (aprobado_por_usuario_id) REFERENCES usuario (id_usuario)', 'SELECT 1') FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'usuario' AND CONSTRAINT_NAME = 'fk_usuario_aprobado_por');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql = (SELECT IF(COUNT(*) = 0, 'ALTER TABLE usuario ADD CONSTRAINT fk_usuario_rechazado_por FOREIGN KEY (rechazado_por_usuario_id) REFERENCES usuario (id_usuario)', 'SELECT 1') FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'usuario' AND CONSTRAINT_NAME = 'fk_usuario_rechazado_por');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 SET @sql = (SELECT IF(COUNT(*) = 0, 'ALTER TABLE diagnostico ADD CONSTRAINT fk_diagnostico_piar FOREIGN KEY (id_piar) REFERENCES piar (id_piar)', 'SELECT 1') FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'diagnostico' AND CONSTRAINT_NAME = 'fk_diagnostico_piar');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
