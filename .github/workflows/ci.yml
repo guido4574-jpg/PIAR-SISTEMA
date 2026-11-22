@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-only-for-ephemeral-service
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-root-only-for-ephemeral-service"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - name: No personal data or secrets in tracked files
+        run: npm run check:secrets
+      - name: Unit tests
+        run: npm test
+
+      - name: Prepare disposable schemas and least-privilege accounts
+        run: |
+          echo "MIGRATOR_PW=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
+          echo "APP_PW=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
+          source "$GITHUB_ENV"
+          mysql -h 127.0.0.1 -uroot -pci-root-only-for-ephemeral-service <<SQL
+          CREATE DATABASE piar_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+          CREATE DATABASE piar_dev_e2e CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+          CREATE USER 'piar_migrator'@'%' IDENTIFIED BY '${MIGRATOR_PW}';
+          GRANT ALL PRIVILEGES ON piar_test.* TO 'piar_migrator'@'%';
+          GRANT ALL PRIVILEGES ON piar_dev_e2e.* TO 'piar_migrator'@'%';
+          CREATE USER 'piar_test'@'%' IDENTIFIED BY '${APP_PW}';
+          GRANT SELECT, INSERT, UPDATE, DELETE ON piar_test.* TO 'piar_test'@'%';
+          CREATE USER 'piar_app'@'%' IDENTIFIED BY '${APP_PW}';
+          GRANT SELECT, INSERT, UPDATE, DELETE ON piar_dev_e2e.* TO 'piar_app'@'%';
+          SQL
+
+      - name: Migrations from scratch (and idempotent re-run)
+        env:
+          NODE_ENV: test
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: piar_migrator
+        run: |
+          for schema in piar_test piar_dev_e2e; do
+            DB_NAME=$schema DB_PASSWORD="$MIGRATOR_PW" npm run -s db:migrate
+            DB_NAME=$schema DB_PASSWORD="$MIGRATOR_PW" npm run -s db:migrate:status
+          done
+          for file in database/migrations/0*.sql; do
+            DB_NAME=piar_test DB_PASSWORD="$MIGRATOR_PW" node backend/run-migration.js "$file"
+          done
+
+      - name: Integration (HTTP + MySQL)
+        env:
+          NODE_ENV: test
+          PIAR_TEST_DB_PORT: 3306
+        run: PIAR_TEST_DB_PASSWORD="$APP_PW" npm run test:integration:local
+
+      - name: End-to-end flows
+        env:
+          PIAR_E2E_DB_PORT: 3306
+          PIAR_E2E_DB_NAME: piar_dev_e2e
+          PIAR_E2E_DB_USER: piar_app
+        run: PIAR_E2E_DB_PASSWORD="$APP_PW" npm run test:e2e

@@ -1,0 +1,33 @@
+services:
+  mysql-test:
+    image: mysql:8.0
+    container_name: piar-mysql-test
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env.test}
+      MYSQL_DATABASE: piar_test
+      MYSQL_USER: piar_test
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env.test}
+    ports:
+      # Loopback only; this port is not published on LAN interfaces.
+      - "127.0.0.1:3307:3306"
+    tmpfs:
+      - /var/lib/mysql
+    volumes:
+      # MySQL runs these scripts only on first initialization of an empty datadir.
+      # This service uses tmpfs. Existing containers/volumes keep their old schema.
+      - ./database/migrations/000_base_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/migrations/001_mvp_core.sql:/docker-entrypoint-initdb.d/02-mvp.sql:ro
+      - ./database/migrations/002_registration_decision_audit.sql:/docker-entrypoint-initdb.d/03-registration-audit.sql:ro
+      - ./database/migrations/003_oidc_identity.sql:/docker-entrypoint-initdb.d/04-oidc.sql:ro
+      - ./database/migrations/005_user_state_length.sql:/docker-entrypoint-initdb.d/05-user-state-length.sql:ro
+      - ./database/migrations/006_piar_pedagogical_completion.sql:/docker-entrypoint-initdb.d/06-piar-completion.sql:ro
+      - ./database/migrations/007_piar_audit_events.sql:/docker-entrypoint-initdb.d/07-piar-audit.sql:ro
+      - ./database/migrations/008_piar_traceability.sql:/docker-entrypoint-initdb.d/08-piar-traceability.sql:ro
+      - ./database/migrations/009_admin_account_audit.sql:/docker-entrypoint-initdb.d/09-admin-account-audit.sql:ro
+      - ./database/migrations/010_registration_decision_reason.sql:/docker-entrypoint-initdb.d/10-registration-decision-reason.sql:ro
+      - ./database/test-init/03-restrict-test-user.sql:/docker-entrypoint-initdb.d/11-restrict-test-user.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
