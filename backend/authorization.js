@@ -30,10 +30,12 @@ function canAccessRoleResource(role, method, pathname) {
 
     if (pathname.startsWith("/api/usuarios")) {
         const approval = /^\/api\/usuarios\/\d+\/aprobacion$/.test(pathname);
-        // A single institution is configured centrally, but the project has
-        // no approved process to validate and provision a Rector identity.
-        // Keep request review restricted to Administrador until that exists.
-        if (approval) return method === "POST" && role === "Administrador";
+        // Registro con aprobación manual: Administrador y Rector revisan solicitudes. El Rector solo ve y
+        // decide las de Docente, Psicóloga y Coordinador (registration-approval.js); las de perfil Rector
+        // siguen reservadas al Administrador porque no hay un proceso aprobado para validar esa identidad.
+        // El Rector no accede al resto de la administración de cuentas.
+        if (pathname === "/api/usuarios/solicitudes") return method === "GET" && includesRole(["Administrador", "Rector"], role);
+        if (approval) return method === "POST" && includesRole(["Administrador", "Rector"], role);
         if (/^\/api\/usuarios\/\d+\/reactivacion$/.test(pathname)) return method === "POST" && role === "Administrador";
         if (method === "GET") return role === "Administrador";
         return role === "Administrador" && ["POST", "PUT", "DELETE"].includes(method);

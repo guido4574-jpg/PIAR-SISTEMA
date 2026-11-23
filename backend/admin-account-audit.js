@@ -10,13 +10,17 @@ const EXPECTED_OUTCOME = Object.freeze({
     // Decisiones D2 y D3: creación institucional, aprobación y rechazo de solicitudes.
     account_created: "pending_verification", registration_approved: "success", registration_rejected: "success"
 });
+// Registro con aprobación manual: la cuenta creada por el Administrador queda pendiente de aprobación,
+// sin enlace de verificación. La cuenta Estudiante (D7) sigue con verificación del correo.
+const ALTERNATIVE_OUTCOMES = Object.freeze({ account_created: new Set(["pending_approval"]) });
 const OPERATIONS = new Set(Object.keys(EXPECTED_OUTCOME));
-// Operations performed from an authenticated Administrador session.
+// Operations performed from an authenticated institutional session (Administrador; Rector only for
+// registration decisions on non-Rector profiles). operator_identity_claim stores the actor's user id.
 const SESSION_OPERATIONS = new Set(["account_deactivated", "account_reactivated", "email_change_requested", "account_updated",
     "account_created", "registration_approved", "registration_rejected"]);
 // Operations proven only by a single-use email token.
 const TOKEN_OPERATIONS = new Set(["email_verified", "email_changed"]);
-const OUTCOMES = new Set(["pending_verification", "success"]);
+const OUTCOMES = new Set(["pending_verification", "pending_approval", "success"]);
 // Decisión D7: única referencia admitida en una sesión administrativa; deja constancia
 // de que el Administrador confirmó la autorización del acudiente al crear una cuenta Estudiante.
 const GUARDIAN_CONSENT_REFERENCE = "autorizacion_acudiente_confirmada";
@@ -27,7 +31,7 @@ function validateAdminEvent(event) {
         || !Number.isSafeInteger(Number(event.targetUserId)) || Number(event.targetUserId) <= 0) {
         throw new Error("Administrative audit event is invalid.");
     }
-    if (event.outcome !== EXPECTED_OUTCOME[event.operation]
+    if ((event.outcome !== EXPECTED_OUTCOME[event.operation] && !ALTERNATIVE_OUTCOMES[event.operation]?.has(event.outcome))
         || (SESSION_OPERATIONS.has(event.operation) && event.operatorIdentitySource !== "admin_session")
         || (event.operation === "email_changed" && event.operatorIdentitySource !== "email_verification_token")) {
         throw new Error("Administrative audit operation and outcome do not match.");

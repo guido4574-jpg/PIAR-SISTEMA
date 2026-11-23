@@ -228,6 +228,10 @@ test("flujos existentes con Resend: registro, recuperación y aviso de decisión
         });
         const registered = await auth.register(registrationDb, { nombre: "Dana", apellidos: "Docente", documento: "RES-1", correo: "dana@example.invalid", password: "Frase sintetica resend 2026", rol: "Docente" });
         assert.equal(registered.status, 202);
+        assert.equal(api.requests.length, 0, "el registro con aprobación manual no envía enlace de verificación");
+        // Una solicitud anterior que sigue en pendiente_verificacion aún puede pedir el enlace por el mismo transporte.
+        const legacyDb = dbWith(async sql => sql.startsWith("SELECT id_usuario, correo FROM usuario") ? [[{ id_usuario: 51, correo: "dana@example.invalid" }]] : [{ affectedRows: 1, insertId: 3 }]);
+        assert.equal((await auth.requestEmailVerification(legacyDb, "dana@example.invalid")).status, 200);
 
         const resetDb = dbWith(async sql => sql.startsWith("SELECT id_usuario, correo FROM usuario") ? [[{ id_usuario: 51, correo: "dana@example.invalid" }]] : [{ affectedRows: 1 }]);
         assert.equal((await auth.requestPasswordReset(resetDb, "dana@example.invalid")).status, 200);
@@ -255,8 +259,11 @@ test("flujos existentes con Resend caído: respuestas públicas iguales y enlace
             return [{ affectedRows: 1 }];
         });
         const registered = await auth.register(registrationDb, { nombre: "Eli", apellidos: "Docente", documento: "RES-2", correo: "eli@example.invalid", password: "Frase sintetica resend 2026", rol: "Docente" });
-        assert.equal(registered.status, 202, "el registro público responde igual aunque el correo falle");
-        assert.ok(registrationDb.statements.some(item => /UPDATE verificacion_correo SET consumed_at/.test(item.sql)), "el enlace no entregado se invalida");
+        assert.equal(registered.status, 202, "el registro público no depende del correo");
+        assert.equal(registrationDb.statements.some(item => /verificacion_correo/.test(item.sql)), false);
+        const legacyDb = dbWith(async sql => sql.startsWith("SELECT id_usuario, correo FROM usuario") ? [[{ id_usuario: 52, correo: "eli@example.invalid" }]] : [{ affectedRows: 1, insertId: 4 }]);
+        assert.equal((await auth.requestEmailVerification(legacyDb, "eli@example.invalid")).status, 200, "el reenvío responde igual aunque el correo falle");
+        assert.ok(legacyDb.statements.some(item => /UPDATE verificacion_correo SET consumed_at/.test(item.sql)), "el enlace no entregado se invalida");
 
         const resetDb = dbWith(async sql => sql.startsWith("SELECT id_usuario, correo FROM usuario") ? [[{ id_usuario: 52, correo: "eli@example.invalid" }]] : [{ affectedRows: 1 }]);
         assert.equal((await auth.requestPasswordReset(resetDb, "eli@example.invalid")).status, 200);
@@ -291,7 +298,9 @@ test("correo desactivado: registro y recuperación mantienen la respuesta públi
             return [{ affectedRows: 1 }];
         });
         assert.equal((await auth.register(registrationDb, { nombre: "Fe", apellidos: "Docente", documento: "OFF-1", correo: "fe@example.invalid", password: "Frase sintetica desactivado 2026", rol: "Docente" })).status, 202);
-        assert.ok(registrationDb.statements.some(item => /UPDATE verificacion_correo SET consumed_at/.test(item.sql)));
+        // Con el correo desactivado el registro sigue funcionando: queda pendiente de aprobación sin enlace.
+        assert.equal(registrationDb.statements.some(item => /verificacion_correo/.test(item.sql)), false);
+        assert.equal(registrationDb.statements.find(item => item.sql.startsWith("INSERT INTO usuario")).values[6], "pendiente");
         const resetDb = dbWith(async sql => sql.startsWith("SELECT id_usuario, correo FROM usuario") ? [[{ id_usuario: 53, correo: "fe@example.invalid" }]] : [{ affectedRows: 1 }]);
         assert.equal((await auth.requestPasswordReset(resetDb, "fe@example.invalid")).status, 200);
         assert.ok(resetDb.statements.some(item => /UPDATE recuperacion_contrasena SET consumed_at/.test(item.sql)));

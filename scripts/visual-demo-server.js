@@ -298,6 +298,11 @@ function apiResponse(request, response, pathname) {
 
     if (!view) return sendJson(response, 401, { ok: false, message: "No hay ninguna vista sintética activada." });
     if (view === "student") return studentApiResponse(response, pathname);
+    if (pathname === "/api/usuarios/solicitudes") {
+        return view === "admin"
+            ? sendJson(response, 200, jsonData(demoAccounts.filter(account => ["pendiente", "pendiente_verificacion"].includes(account.estado) && account.rol !== "Administrador" && account.rol !== "Estudiante")))
+            : sendJson(response, 403, { ok: false, message: "No tiene permisos para esta operación." });
+    }
     if (pathname === "/api/usuarios") {
         return view === "admin"
             ? sendJson(response, 200, jsonData(demoAccounts))

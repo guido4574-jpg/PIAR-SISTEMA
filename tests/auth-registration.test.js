@@ -30,48 +30,29 @@ const payload = {
     correo: " Ana.Prueba@Example.invalid ", password: "  contraseña segura  ", rol: "Docente"
 };
 
-test("public Docente registration hashes the exact password and starts pending verification", async () => {
-    let verificationLink;
-    const previousBaseUrl = process.env.APP_BASE_URL;
-    process.env.APP_BASE_URL = "https://piar.example.invalid";
+test("public Docente registration hashes the exact password and waits for institutional approval without a verification link", async () => {
+    let delivered = false;
     const db = dbWith(async sql => {
         if (sql.startsWith("SELECT id_usuario")) return [[]];
         if (sql.startsWith("INSERT INTO usuario")) return [{ insertId: 41 }];
-        if (sql.startsWith("SELECT * FROM usuario")) return [[{
-            id_usuario: 41, nombre: "Ana Prueba", documento: "SYNTHETIC-REG-1",
-            correo: "ana.prueba@example.invalid", rol: "Docente", estado: "pendiente_verificacion"
-        }]];
-        if (sql.startsWith("INSERT INTO verificacion_correo")) return [{ insertId: 7 }];
-        throw new Error("Unexpected SQL in registration test");
+        throw new Error("Unexpected SQL in registration test: " + sql);
     });
-
-    let result;
-    try {
-        result = await register(db, payload, false, async (email, link) => { verificationLink = { email, link }; });
-    } finally {
-        if (previousBaseUrl === undefined) delete process.env.APP_BASE_URL;
-        else process.env.APP_BASE_URL = previousBaseUrl;
-    }
+    const result = await register(db, payload, false, async () => { delivered = true; });
     assert.equal(result.status, 202);
-    assert.equal(result.body.pendingVerification, true);
-    assert.match(result.body.message, /Revisa tu bandeja de entrada y la carpeta de spam/);
-    assert.match(result.body.message, /Reenviar verificación de correo/);
+    assert.equal(result.body.pendingApproval, true);
+    assert.match(result.body.message, /pendiente de aprobación institucional/);
+    assert.match(result.body.message, /Administrador o Rector/);
     const insert = db.statements.find(statement => statement.sql?.startsWith("INSERT INTO usuario"));
     assert.equal(insert.values[2], "ana.prueba@example.invalid");
     assert.equal(insert.values[3], "Docente");
     assert.equal(insert.values[4], "");
     assert.ok(await bcrypt.compare(payload.password, insert.values[5]));
-    assert.equal(insert.values[6], "pendiente_verificacion");
+    assert.equal(insert.values[6], "pendiente");
+    // El correo no se marca como verificado y no se crea ni envía ningún enlace.
+    assert.doesNotMatch(insert.sql, /correo_verificado_at/);
+    assert.equal(db.statements.some(statement => /verificacion_correo/.test(statement.sql || "")), false);
+    assert.equal(delivered, false);
     assert.ok(!JSON.stringify(result).includes(payload.password));
-    const verification = db.statements.find(statement => statement.sql?.startsWith("INSERT INTO verificacion_correo"));
-    assert.equal(verification.values[0], 41);
-    assert.match(verification.values[1], /^[a-f0-9]{64}$/);
-    // Expiry is computed by MySQL (same clock used to compare it later).
-    assert.match(verification.sql, /DATE_ADD\(CURRENT_TIMESTAMP, INTERVAL \? HOUR\)/);
-    assert.equal(verification.values[2], 24);
-    const rawToken = new URL(verificationLink.link).hash.match(/verify-email=([A-Za-z0-9_-]+)/)?.[1];
-    assert.ok(rawToken);
-    assert.equal(verification.values[1], require("node:crypto").createHash("sha256").update(rawToken).digest("hex"));
     assert.ok(db.statements.some(statement => statement.transaction === "commit"));
 });
 
@@ -79,7 +60,7 @@ test("registration gives a generic response for duplicate email or document with
     const db = dbWith(async sql => sql.startsWith("SELECT id_usuario") ? [[{ id_usuario: 9 }]] : [{ insertId: 1 }]);
     const result = await register(db, payload);
     assert.equal(result.status, 202);
-    assert.equal(result.body.pendingVerification, true);
+    assert.equal(result.body.pendingApproval, true);
     assert.equal(db.statements.filter(statement => statement.sql?.startsWith("INSERT")).length, 0);
 });
 
@@ -107,43 +88,40 @@ test("public registration rejects Administrador, Estudiante and unknown roles be
     }
 });
 
-test("decisión D2: Psicóloga, Coordinador y Rector quedan pendientes de verificación, sin perfil ni activación", async () => {
+test("decisión D2: Psicóloga, Coordinador y Rector quedan pendientes de aprobación, sin perfil, activación ni verificación", async () => {
     for (const rol of ["Psicóloga", "Coordinador", "Rector"]) {
         const db = dbWith(async sql => {
             if (sql.startsWith("SELECT id_usuario")) return [[]];
             if (sql.startsWith("INSERT INTO usuario")) return [{ insertId: 42 }];
-            if (sql.startsWith("INSERT INTO verificacion_correo")) return [{ insertId: 8 }];
-            // Sin APP_BASE_URL el enlace no se envía y se inutiliza (comportamiento existente).
-            if (sql.startsWith("UPDATE verificacion_correo SET consumed_at")) return [{ affectedRows: 1 }];
             throw new Error("Unexpected SQL: " + sql);
         });
-        const result = await register(db, { ...payload, rol }, false, async () => {});
+        const result = await register(db, { ...payload, rol }, false, async () => { throw new Error("no debe enviarse correo"); });
         assert.equal(result.status, 202, rol);
         const insert = db.statements.find(statement => statement.sql?.startsWith("INSERT INTO usuario"));
         assert.equal(insert.values[3], rol);
-        assert.equal(insert.values[6], "pendiente_verificacion");
+        assert.equal(insert.values[6], "pendiente");
         assert.doesNotMatch(insert.sql, /password_change_required/, "el registro público no marca contraseña temporal");
-        assert.equal(db.statements.some(statement => /docente|admin_account_audit/i.test(statement.sql || "")), false, rol);
+        assert.equal(db.statements.some(statement => /docente|admin_account_audit|verificacion_correo/i.test(statement.sql || "")), false, rol);
     }
 });
 
-test("decisión D3: la creación institucional audita, exige cambio de contraseña y responde 409 ante duplicados", async () => {
+test("decisión D3: la creación institucional audita, exige cambio de contraseña, queda pendiente de aprobación y responde 409 ante duplicados", async () => {
     const db = dbWith(async sql => {
         if (sql.startsWith("SELECT id_usuario")) return [[]];
         if (sql.startsWith("INSERT INTO usuario")) return [{ insertId: 77 }];
-        if (sql.startsWith("INSERT INTO verificacion_correo")) return [{ insertId: 9 }];
         if (sql.startsWith("INSERT INTO admin_account_audit")) return [{ insertId: 1 }];
-        if (sql.startsWith("UPDATE verificacion_correo SET consumed_at")) return [{ affectedRows: 1 }];
         throw new Error("Unexpected SQL: " + sql);
     });
-    const created = await register(db, { ...payload, rol: "Rector" }, false, async () => {}, { actorId: 5 });
+    const created = await register(db, { ...payload, rol: "Rector" }, false, async () => { throw new Error("no debe enviarse correo"); }, { actorId: 5 });
     assert.equal(created.status, 201);
-    assert.equal(created.body.pendingVerification, true);
+    assert.equal(created.body.pendingApproval, true);
+    assert.match(created.body.message, /pendiente de aprobación en «Solicitudes»/);
     const insert = db.statements.find(statement => statement.sql?.startsWith("INSERT INTO usuario"));
     assert.match(insert.sql, /password_change_required\) VALUES \(\?, \?, \?, \?, \?, \?, \?, 1\)/);
-    assert.equal(insert.values[6], "pendiente_verificacion");
+    assert.equal(insert.values[6], "pendiente");
+    assert.equal(db.statements.some(statement => /verificacion_correo/.test(statement.sql || "")), false);
     const audit = db.statements.find(statement => statement.sql?.startsWith("INSERT INTO admin_account_audit"));
-    assert.deepEqual(audit.values.slice(0, 5), [77, "account_created", "pending_verification", "5", "admin_session"]);
+    assert.deepEqual(audit.values.slice(0, 5), [77, "account_created", "pending_approval", "5", "admin_session"]);
 
     const duplicate = dbWith(async sql => sql.startsWith("SELECT id_usuario") ? [[{ id_usuario: 3 }]] : [[]]);
     assert.equal((await register(duplicate, payload, false, async () => {}, { actorId: 5 })).status, 409);
@@ -152,21 +130,19 @@ test("decisión D3: la creación institucional audita, exige cambio de contrase�
     assert.equal((await register(duplicate, { ...payload, rol: "Administrador" }, false, async () => {}, { actorId: 5 })).status, 400);
 });
 
-test("legacy privileged registration flag cannot bypass verification for a Docente request", async () => {
+test("legacy privileged registration flag cannot activate or elevate a Docente request", async () => {
     const db = dbWith(async sql => {
         if (sql.startsWith("SELECT id_usuario")) return [[]];
         if (sql.startsWith("INSERT INTO usuario")) return [{ insertId: 42 }];
-        if (sql.startsWith("INSERT INTO verificacion_correo")) return [{ insertId: 8 }];
-        if (sql.startsWith("UPDATE verificacion_correo SET consumed_at")) return [{ affectedRows: 1 }];
         throw new Error("Unexpected SQL in privileged registration regression");
     });
     const result = await register(db, payload, true, async () => {});
     assert.equal(result.status, 202);
-    assert.equal(result.body.pendingVerification, true);
+    assert.equal(result.body.pendingApproval, true);
     const insert = db.statements.find(statement => statement.sql?.startsWith("INSERT INTO usuario"));
     assert.equal(insert.values[3], "Docente");
-    assert.equal(insert.values[6], "pendiente_verificacion");
-    assert.ok(db.statements.some(statement => statement.sql?.startsWith("INSERT INTO verificacion_correo")));
+    assert.equal(insert.values[6], "pendiente");
+    assert.notEqual(insert.values[6], "activo");
 });
 
 test("administrative account route only admits the D3 profiles plus Estudiante (D7) and invokes the protected registration flow", () => {
@@ -186,17 +162,17 @@ test("registration maps a concurrent unique-key collision to the generic respons
     });
     const result = await register(db, payload);
     assert.equal(result.status, 202);
-    assert.equal(result.body.pendingVerification, true);
+    assert.equal(result.body.pendingApproval, true);
 });
 
-test("registration rolls back the account when verification-token persistence fails", async () => {
+test("institutional registration rolls back the account when its audit record cannot be stored", async () => {
     const db = dbWith(async sql => {
         if (sql.startsWith("SELECT id_usuario")) return [[]];
         if (sql.startsWith("INSERT INTO usuario")) return [{ insertId: 73 }];
-        if (sql.startsWith("INSERT INTO verificacion_correo")) throw new Error("synthetic token-store failure");
+        if (sql.startsWith("INSERT INTO admin_account_audit")) throw new Error("synthetic audit-store failure");
         throw new Error(`Unexpected SQL: ${sql}`);
     });
-    await assert.rejects(register(db, payload, false, async () => {}), /synthetic token-store failure/);
+    await assert.rejects(register(db, payload, false, async () => {}, { actorId: 5 }), /synthetic audit-store failure/);
     assert.ok(db.statements.some(statement => statement.transaction === "rollback"));
     assert.equal(db.statements.some(statement => statement.transaction === "commit"), false);
 });
@@ -258,4 +234,28 @@ test("pending and rejected accounts cannot create sessions", async () => {
         assert.equal(result.session, undefined);
         assert.equal(db.statements.length, 1);
     }
+});
+
+test("manual approval: pending, unverified-pending and rejected accounts cannot log in; an approved account can even without a verified email", async () => {
+    const password = "Frase sintética de acceso 2026";
+    const hash = await bcrypt.hash(password, 4);
+    const attempt = async (estado, correoVerificado) => {
+        const db = dbWith(async sql => {
+            if (sql.startsWith("SELECT id_usuario, nombre, documento, correo, rol, estado, password_hash")) return [[{
+                id_usuario: 60, nombre: "Solicitante", correo: "solicitante@example.invalid", documento: "SYNTHETIC-APPROVAL",
+                rol: "Docente", estado, correo_verificado_at: correoVerificado, password_hash: hash, password_change_required: 0
+            }]];
+            if (sql.startsWith("INSERT INTO sesion_usuario")) return [{ insertId: 1 }];
+            if (sql.startsWith("UPDATE usuario SET ultimo_acceso_at")) return [{ affectedRows: 1 }];
+            throw new Error(`Unexpected SQL in approval login test: ${sql}`);
+        });
+        return { result: await login(db, { correo: "solicitante@example.invalid", password }), db };
+    };
+    for (const estado of ["pendiente", "pendiente_verificacion", "rechazado", "inactivo"]) {
+        const { result, db } = await attempt(estado, null);
+        assert.equal(result.status, 401, estado);
+        assert.equal(db.statements.some(statement => statement.sql?.startsWith("INSERT INTO sesion_usuario")), false, estado);
+    }
+    const approved = await attempt("activo", null);
+    assert.equal(approved.result.status, 200, "la aprobación institucional permite ingresar sin correo verificado");
 });

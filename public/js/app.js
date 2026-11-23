@@ -492,7 +492,7 @@ function registerForm() {
             <div class="auth-field"><label for="registerLastName">Apellidos</label><input id="registerLastName" name="apellidos" type="text" class="input-modern" placeholder="Apellidos" autocomplete="family-name" required></div>
             <div class="auth-field"><label for="registerDocument">Documento</label><input id="registerDocument" name="documento" type="text" class="input-modern" placeholder="Número de documento" autocomplete="off" required></div>
             <div class="auth-field"><label for="registerEmail">Correo electrónico</label><input id="registerEmail" name="correo" type="email" class="input-modern" placeholder="nombre@institucion.edu.co" autocomplete="email" required></div>
-            <div class="auth-field"><label for="registerRole">Perfil institucional solicitado</label><select id="registerRole" name="rol" class="input-modern" required>${requestableRoleOptions("Docente")}</select><small class="auth-status-note">La solicitud requiere verificación del correo y aprobación institucional. Elegir un perfil no concede acceso ni permisos.</small></div>
+            <div class="auth-field"><label for="registerRole">Perfil institucional solicitado</label><select id="registerRole" name="rol" class="input-modern" required>${requestableRoleOptions("Docente")}</select><small class="auth-status-note">La solicitud queda pendiente hasta que un Administrador o Rector la apruebe. Elegir un perfil no concede acceso ni permisos.</small></div>
             <div class="auth-field auth-password-field"><label for="registerPassword">Contraseña</label><input id="registerPassword" name="password" type="password" class="input-modern" placeholder="Mínimo 14 caracteres" autocomplete="new-password" minlength="14" maxlength="72" required><button class="auth-password-toggle" type="button" aria-label="Mostrar contraseña" data-onclick="togglePasswordVisibility('registerPassword', this)">Mostrar</button></div>
             <div class="auth-field auth-password-field"><label for="registerConfirm">Confirmar contraseña</label><input id="registerConfirm" name="password-confirm" type="password" class="input-modern" placeholder="Repite la contraseña" autocomplete="new-password" minlength="14" required><button class="auth-password-toggle" type="button" aria-label="Mostrar confirmación de contraseña" data-onclick="togglePasswordVisibility('registerConfirm', this)">Mostrar</button></div>
             <button type="submit" class="btn-modern auth-submit">Solicitar cuenta</button>
@@ -697,6 +697,9 @@ function sidebar(active) {
     ];
     if (currentSessionUser?.rol === "Administrador") {
         items.splice(1, 0, ["registration-requests", "bi-person-check-fill", "Solicitudes"], ["users", "bi-person-gear", "Usuarios"]);
+    } else if (currentSessionUser?.rol === "Rector") {
+        // El Rector revisa solicitudes de Docente, Psicólogo(a) y Coordinador; no administra cuentas.
+        items.splice(1, 0, ["registration-requests", "bi-person-check-fill", "Solicitudes"]);
     }
     if (isStudentSession()) items.splice(0, items.length, ["piar", "bi-journal-text", "Mi PIAR"]);
 
@@ -724,7 +727,7 @@ function sidebar(active) {
 function navbar(view) {
     const titles = {
         dashboard: ["Dashboard", "Resumen general del seguimiento institucional"],
-        "registration-requests": ["Solicitudes de registro", "Verifica el correo y gestiona la aprobación institucional"],
+        "registration-requests": ["Solicitudes de registro", "Revisa y decide las solicitudes de acceso institucional"],
         users: ["Usuarios", "Cuentas institucionales, estado y acceso"],
         students: ["Gestión de estudiantes", "Perfiles, diagnósticos, barreras y apoyos"],
         teachers: ["Docentes", "Responsables, áreas y acompañamiento"],
@@ -782,21 +785,26 @@ function renderView(view) {
 async function renderRegistrationRequests() {
     const root = document.getElementById("viewRoot");
     if (!root) return;
-    if (currentSessionUser?.rol !== "Administrador") {
+    if (!canDecideRegistrationRequests()) {
         root.innerHTML = '<div class="table-card"><p>No tienes autorización para gestionar solicitudes.</p></div>';
         return;
     }
     root.innerHTML = '<div class="table-card"><p role="status">Cargando solicitudes…</p></div>';
     try {
-        const result = await apiGetUsers();
-        const requests = (result.data || []).filter(user => REQUESTABLE_ROLES.some(([value]) => value === user.rol) && ["pendiente_verificacion", "pendiente"].includes(user.estado));
+        // El servidor devuelve solo las solicitudes pendientes que este rol puede decidir.
+        const result = await apiGetRegistrationRequests();
+        // Defensa adicional: solo perfiles solicitables y en estado pendiente.
+        const requests = (result.data || []).filter(user => REQUESTABLE_ROLES.some(([value]) => value === user.rol) && ["pendiente", "pendiente_verificacion"].includes(user.estado));
+        const rectorNote = currentSessionUser?.rol === "Rector" ? " Las solicitudes de perfil Rector las decide el Administrador." : "";
         root.innerHTML = `
             <div class="table-card">
                 <div class="table-header"><h3>Solicitudes de registro</h3><span>${requests.length} pendientes</span></div>
-                ${requests.length ? `<div class="responsive-table"><table class="modern-table"><thead><tr><th>Nombre</th><th>Correo</th><th>Documento</th><th>Perfil</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
+                <p class="auth-status-note">Confirma la identidad de cada persona por un canal institucional antes de aprobar: en este proceso el sistema no verifica el correo.${rectorNote}</p>
+                ${requests.length ? `<div class="responsive-table"><table class="modern-table"><thead><tr><th>Nombre</th><th>Correo</th><th>Documento</th><th>Perfil</th><th>Verificación del correo</th><th>Acción</th></tr></thead><tbody>
                     ${requests.map(user => {
-                        const verified = user.estado === "pendiente" && Boolean(user.correo_verificado_at);
-                        return `<tr><td>${escapeHTML(user.nombre)}</td><td>${escapeHTML(user.correo)}</td><td>${escapeHTML(user.documento)}</td><td>${escapeHTML(roleLabel(user.rol))}</td><td><span class="approval-state ${verified ? "approval-state-ready" : ""}">${verified ? "Correo verificado" : "Correo por verificar"}</span></td><td>${verified ? `<div class="approval-actions"><button type="button" data-onclick="decideRegistrationRequest(${Number(user.id_usuario)}, 'aprobar')">Aprobar</button><button type="button" class="approval-reject" data-onclick="decideRegistrationRequest(${Number(user.id_usuario)}, 'rechazar')">Rechazar</button></div>` : '<span class="approval-waiting">Pendiente de verificación</span>'}</td></tr>`;
+                        // Informativo: aprobar la solicitud no marca el correo como verificado.
+                        const verified = Boolean(user.correo_verificado_at);
+                        return `<tr><td>${escapeHTML(user.nombre)}</td><td>${escapeHTML(user.correo)}</td><td>${escapeHTML(user.documento)}</td><td>${escapeHTML(roleLabel(user.rol))}</td><td><span class="approval-state ${verified ? "approval-state-ready" : ""}">${verified ? "Verificado" : "Sin verificar"}</span></td><td><div class="approval-actions"><button type="button" data-onclick="decideRegistrationRequest(${Number(user.id_usuario)}, 'aprobar')">Aprobar</button><button type="button" class="approval-reject" data-onclick="decideRegistrationRequest(${Number(user.id_usuario)}, 'rechazar')">Rechazar</button></div></td></tr>`;
                     }).join("")}
                 </tbody></table></div>` : '<p class="auth-status-note">No hay solicitudes pendientes en este momento.</p>'}
             </div>`;
@@ -805,8 +813,12 @@ async function renderRegistrationRequests() {
     }
 }
 
+function canDecideRegistrationRequests() {
+    return ["Administrador", "Rector"].includes(currentSessionUser?.rol);
+}
+
 async function decideRegistrationRequest(userId, decision) {
-    if (currentSessionUser?.rol !== "Administrador" || !["aprobar", "rechazar"].includes(decision)) return;
+    if (!canDecideRegistrationRequests() || !["aprobar", "rechazar"].includes(decision)) return;
     const verb = decision === "aprobar" ? "aprobar" : "rechazar";
     if (!window.confirm(`¿Confirmas ${verb} esta solicitud?`)) return;
     let reason = "";

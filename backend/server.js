@@ -14,7 +14,7 @@ const { STUDENT_ROLE, handleStudentPortalRequest } = require("./student-portal")
 const { validDate, validateBarrierPayload, validateAdjustmentTracePayload, validateEvidencePayload, validateDuaPayload, validateRecordPayload } = require("./pedagogical-validation");
 const { classifyMutation } = require("./mutation-result");
 const { runVersionedPiarMutation, runVersionedPiarMutations, normalizeJustification } = require("./piar-versioning");
-const { decidePendingTeacher } = require("./registration-approval");
+const { decidePendingTeacher, decidableRoles } = require("./registration-approval");
 const { notifyRegistrationDecision } = require("./decision-notification");
 const { buildStudentUpdate } = require("./student-update");
 const { validateTeacherPayload } = require("./teacher-validation");
@@ -386,7 +386,7 @@ async function handleApi(request, response, url) {
     if (approvalMatch && method === "POST") {
         const payload = await readJsonBody(request);
         const [applicant] = await queryDb("SELECT nombre, correo, rol FROM usuario WHERE id_usuario = ?", [Number(approvalMatch[1])]);
-        const result = await decidePendingTeacher(db, Number(approvalMatch[1]), payload.decision, sessionUser.id, payload.reason);
+        const result = await decidePendingTeacher(db, Number(approvalMatch[1]), payload.decision, sessionUser.id, payload.reason, sessionUser.rol);
         if (result.status !== 200) {
             sendJson(response, result.status, { ok: false, message: result.message });
             return;
@@ -420,6 +420,22 @@ async function handleApi(request, response, url) {
             sendJson(response, 404, { ok: false, message: "Registro no encontrado." });
             return;
         }
+    }
+
+    // Solicitudes pendientes de aprobación institucional (Administrador y Rector). Solo los campos
+    // necesarios para decidir; el Rector no ve solicitudes de perfil Rector ni cuentas ya decididas.
+    if (request.method === "GET" && url.pathname === "/api/usuarios/solicitudes") {
+        const roles = decidableRoles(sessionUser?.rol);
+        if (!roles.length) {
+            sendJson(response, 403, { ok: false, message: "No autorizado" });
+            return;
+        }
+        const requests = await queryDb(
+            `SELECT id_usuario, nombre, documento, correo, rol, estado, correo_verificado_at, created_at FROM usuario WHERE estado IN ('pendiente', 'pendiente_verificacion') AND rol IN (${roles.map(() => "?").join(", ")}) ORDER BY created_at, id_usuario`,
+            roles
+        );
+        sendJson(response, 200, { ok: true, data: requests.map(item => ({ ...item, correo_verificado: Boolean(item.correo_verificado_at) })) });
+        return;
     }
 
     if (request.method === "GET" && url.pathname === "/api/usuarios") {
@@ -2001,7 +2017,7 @@ async function changeUserActivation(userId, actor, action) {
     const connection = await db.promise().getConnection();
     try {
         await connection.beginTransaction();
-        const [targets] = await connection.query("SELECT id_usuario, rol, estado, correo_verificado_at FROM usuario WHERE id_usuario = ? FOR UPDATE", [userId]);
+        const [targets] = await connection.query("SELECT id_usuario, rol, estado, correo_verificado_at, aprobado_por_usuario_id FROM usuario WHERE id_usuario = ? FOR UPDATE", [userId]);
         const target = targets[0];
         if (!target) { await connection.rollback(); return { status: 404, body: { ok: false, message: "Usuario no encontrado." } }; }
         if (action === "desactivar") {
@@ -2013,9 +2029,10 @@ async function changeUserActivation(userId, actor, action) {
             await connection.query("UPDATE usuario SET estado = 'inactivo' WHERE id_usuario = ? AND estado = 'activo'", [userId]);
             await connection.query("UPDATE sesion_usuario SET revoked_at = CURRENT_TIMESTAMP WHERE id_usuario = ? AND revoked_at IS NULL", [userId]);
         } else {
-            if (target.estado !== "inactivo" || !target.correo_verificado_at) {
+            // Con aprobación manual, una cuenta aprobada por la institución puede no tener el correo verificado.
+            if (target.estado !== "inactivo" || (!target.correo_verificado_at && !target.aprobado_por_usuario_id)) {
                 await connection.rollback();
-                return { status: 409, body: { ok: false, message: "Solo se pueden reactivar cuentas inactivas con correo verificado." } };
+                return { status: 409, body: { ok: false, message: "Solo se pueden reactivar cuentas inactivas con correo verificado o aprobadas por la institución." } };
             }
             await connection.query("UPDATE usuario SET estado = 'activo' WHERE id_usuario = ? AND estado = 'inactivo'", [userId]);
         }

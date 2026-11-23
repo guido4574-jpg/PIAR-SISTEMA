@@ -310,27 +310,62 @@ test("flujos institucionales de extremo a extremo con MySQL real y reinicio", { 
         assert.equal((await coord("PUT", `/api/piar/${piarId}`, { fecha_revision: "31/12/2026", justificacion: "x" })).status, 400);
         assert.equal(clearedPiar.titulo, "PIAR e2e");
 
-        // Registro público (D2): verificación, pendiente sin acceso, aprobación con aviso y rechazo.
+        // Registro público (D2) con aprobación manual: sin enlace de verificación, pendiente sin acceso,
+        // aprobación por Rector (perfiles no Rector) o Administrador, y rechazo con motivo.
         const visitor = client();
         const applicant = { nombre: "Paula", apellidos: "Psicologa Sintetica", documento: "E2E-PSI-REG", correo: "e2e-psi@example.invalid", password: PASSWORD, rol: "Psicóloga" };
+        const mailsBeforeRegistration = MAILBOX.messages.length;
         assert.equal((await visitor("POST", "/api/auth/register", applicant)).status, 202);
         assert.equal((await visitor("POST", "/api/auth/register", { ...applicant, rol: "Administrador" })).status, 400);
-        assert.equal((await visitor("POST", "/api/auth/email-verification/confirm", { token: lastToken(applicant.correo, "verify-email") })).status, 200);
+        assert.equal(MAILBOX.messages.length, mailsBeforeRegistration, "el registro no envía enlace de verificación");
         assert.notEqual((await client()("POST", "/api/auth/login", { correo: applicant.correo, password: PASSWORD })).status, 200, "pendiente no ingresa");
-        const [[pendingUser]] = await db.query("SELECT id_usuario, estado FROM usuario WHERE correo = ?", [applicant.correo]);
+        const [[pendingUser]] = await db.query("SELECT id_usuario, estado, correo_verificado_at FROM usuario WHERE correo = ?", [applicant.correo]);
         assert.equal(pendingUser.estado, "pendiente");
+        assert.equal(pendingUser.correo_verificado_at, null);
+        const [[tokens]] = await db.query("SELECT COUNT(*) AS total FROM verificacion_correo WHERE id_usuario = ?", [pendingUser.id_usuario]);
+        assert.equal(Number(tokens.total), 0);
+        const rectorRequests = await rector("GET", "/api/usuarios/solicitudes");
+        assert.equal(rectorRequests.status, 200);
+        assert.ok(rectorRequests.body.data.some(item => item.id_usuario === pendingUser.id_usuario));
+        assert.equal((await rector("GET", "/api/usuarios")).status, 403, "el Rector no administra cuentas");
+        assert.equal((await coord("GET", "/api/usuarios/solicitudes")).status, 403);
         assert.equal((await coord("POST", `/api/usuarios/${pendingUser.id_usuario}/aprobacion`, { decision: "aprobar" })).status, 403);
-        const approved = await admin("POST", `/api/usuarios/${pendingUser.id_usuario}/aprobacion`, { decision: "aprobar" });
+        const approved = await rector("POST", `/api/usuarios/${pendingUser.id_usuario}/aprobacion`, { decision: "aprobar" });
         assert.equal(approved.status, 200, JSON.stringify(approved.body));
         assert.equal(approved.body.notificacion, "enviada");
         assert.ok(MAILBOX.messages.some(item => item.to === applicant.correo && /aprobada/.test(item.subject)));
-        const newPsico = await login({ correo: applicant.correo, rol: "Psicóloga" });
+        const [[approvedUser]] = await db.query("SELECT estado, correo_verificado_at, aprobado_por_usuario_id, decision_at FROM usuario WHERE id_usuario = ?", [pendingUser.id_usuario]);
+        assert.equal(approvedUser.estado, "activo");
+        assert.equal(approvedUser.correo_verificado_at, null, "aprobar no marca el correo como verificado");
+        assert.equal(Number(approvedUser.aprobado_por_usuario_id), users.rector.id);
+        assert.ok(approvedUser.decision_at);
+        let newPsico = await login({ correo: applicant.correo, rol: "Psicóloga" });
         assert.equal((await newPsico("GET", "/api/piar")).status, 200);
+        // Una cuenta aprobada sin correo verificado se puede desactivar y reactivar; inactiva no ingresa.
+        assert.equal((await admin("DELETE", `/api/usuarios/${pendingUser.id_usuario}`)).status, 200);
+        assert.equal((await client()("POST", "/api/auth/login", { correo: applicant.correo, password: PASSWORD })).status, 401, "inactiva no ingresa");
+        assert.equal((await admin("POST", `/api/usuarios/${pendingUser.id_usuario}/reactivacion`, {})).status, 200);
+        newPsico = await login({ correo: applicant.correo, rol: "Psicóloga" });
+
+        // Registro de Coordinador aprobado por el Administrador; nadie decide su propia cuenta.
+        const coordApplicant = { nombre: "Ciro", apellidos: "Coordinador Sintetico", documento: "E2E-COO-REG", correo: "e2e-coo@example.invalid", password: PASSWORD, rol: "Coordinador" };
+        assert.equal((await visitor("POST", "/api/auth/register", coordApplicant)).status, 202);
+        assert.notEqual((await client()("POST", "/api/auth/login", { correo: coordApplicant.correo, password: PASSWORD })).status, 200, "pendiente no ingresa");
+        const [[coordRequest]] = await db.query("SELECT id_usuario, estado FROM usuario WHERE correo = ?", [coordApplicant.correo]);
+        assert.equal(coordRequest.estado, "pendiente");
+        assert.equal((await admin("POST", `/api/usuarios/${users.admin.id}/aprobacion`, { decision: "aprobar" })).status, 403, "autoaprobación del Administrador");
+        assert.equal((await rector("POST", `/api/usuarios/${users.rector.id}/aprobacion`, { decision: "aprobar" })).status, 403, "autoaprobación del Rector");
+        const coordApproved = await admin("POST", `/api/usuarios/${coordRequest.id_usuario}/aprobacion`, { decision: "aprobar" });
+        assert.equal(coordApproved.status, 200, JSON.stringify(coordApproved.body));
+        const [[coordDecision]] = await db.query("SELECT estado, correo_verificado_at, aprobado_por_usuario_id FROM usuario WHERE id_usuario = ?", [coordRequest.id_usuario]);
+        assert.deepEqual([coordDecision.estado, coordDecision.correo_verificado_at, Number(coordDecision.aprobado_por_usuario_id)], ["activo", null, users.admin.id]);
+        await login({ correo: coordApplicant.correo, rol: "Coordinador" });
 
         const rejectedApplicant = { ...applicant, nombre: "Rene", documento: "E2E-REC-REG", correo: "e2e-rec@example.invalid", rol: "Rector" };
         assert.equal((await visitor("POST", "/api/auth/register", rejectedApplicant)).status, 202);
-        assert.equal((await visitor("POST", "/api/auth/email-verification/confirm", { token: lastToken(rejectedApplicant.correo, "verify-email") })).status, 200);
         const [[rejectedUser]] = await db.query("SELECT id_usuario FROM usuario WHERE correo = ?", [rejectedApplicant.correo]);
+        assert.equal((await rector("GET", "/api/usuarios/solicitudes")).body.data.some(item => item.id_usuario === rejectedUser.id_usuario), false, "el Rector no ve solicitudes de perfil Rector");
+        assert.equal((await rector("POST", `/api/usuarios/${rejectedUser.id_usuario}/aprobacion`, { decision: "aprobar" })).status, 403, "las solicitudes de perfil Rector las decide el Administrador");
         assert.equal((await admin("POST", `/api/usuarios/${rejectedUser.id_usuario}/aprobacion`, { decision: "rechazar" })).status, 400, "el rechazo exige motivo");
         assert.equal((await admin("POST", `/api/usuarios/${rejectedUser.id_usuario}/aprobacion`, { decision: "rechazar", reason: "Documento no corresponde" })).status, 200);
         const rejectionMail = MAILBOX.messages.find(item => item.to === rejectedApplicant.correo && /no fue aprobada/.test(item.subject));
@@ -338,7 +373,7 @@ test("flujos institucionales de extremo a extremo con MySQL real y reinicio", { 
         assert.doesNotMatch(rejectionMail.text, /Documento no corresponde/, "el aviso no expone el motivo interno");
         assert.notEqual((await client()("POST", "/api/auth/login", { correo: rejectedApplicant.correo, password: PASSWORD })).status, 200);
         const [[decisions]] = await db.query("SELECT SUM(operation = 'registration_approved') AS aprobadas, SUM(operation = 'registration_rejected') AS rechazadas FROM admin_account_audit");
-        assert.equal(Number(decisions.aprobadas), 1);
+        assert.equal(Number(decisions.aprobadas), 2, "Psicóloga por el Rector y Coordinador por el Administrador");
         assert.equal(Number(decisions.rechazadas), 1);
 
         // Cambio de correo (D1, migración 016): el correo actual sigue vigente hasta confirmar.
@@ -350,6 +385,10 @@ test("flujos institucionales de extremo a extremo con MySQL real y reinicio", { 
         assert.equal((await newPsico("GET", "/api/auth/me")).status, 401, "confirmar el cambio revoca las sesiones");
         assert.notEqual((await client()("POST", "/api/auth/login", { correo: applicant.correo, password: PASSWORD })).status, 200);
         await login({ correo: changedEmail, rol: "Psicóloga" });
+        // Confirmar el enlace enviado a la dirección nueva sí verifica esa dirección.
+        const [[changedUser]] = await db.query("SELECT correo, correo_verificado_at FROM usuario WHERE id_usuario = ?", [pendingUser.id_usuario]);
+        assert.equal(changedUser.correo, changedEmail);
+        assert.ok(changedUser.correo_verificado_at);
 
         // Cuenta Estudiante (D7): la crea el Administrador, vinculada y con autorización del acudiente.
         const studentAccount = { nombre: "Estudiante", apellidos: "Sintetico", documento: "E2E-EST-1", correo: "e2e-est@example.invalid", password: PASSWORD, rol: "Estudiante", id_estudiante: studentId };
@@ -362,6 +401,11 @@ test("flujos institucionales de extremo a extremo con MySQL real y reinicio", { 
         const adminStudents = await admin("GET", "/api/estudiantes");
         assert.equal(adminStudents.body.find(item => Number(item.id) === studentId).cuenta_vinculada, true);
         assert.equal((await coord("GET", "/api/estudiantes")).body.find(item => Number(item.id) === studentId).cuenta_vinculada, undefined);
+        // La cuenta Estudiante conserva la verificación obligatoria: sin confirmar el correo no ingresa.
+        const [[studentBefore]] = await db.query("SELECT estado, correo_verificado_at FROM usuario WHERE correo = ?", [studentAccount.correo]);
+        assert.deepEqual([studentBefore.estado, studentBefore.correo_verificado_at], ["pendiente_verificacion", null]);
+        assert.notEqual((await client()("POST", "/api/auth/login", { correo: studentAccount.correo, password: PASSWORD })).status, 200, "Estudiante sin verificar no ingresa");
+        assert.equal((await rector("GET", "/api/usuarios/solicitudes")).body.data.some(item => item.rol === "Estudiante"), false, "la cuenta Estudiante no pasa por Solicitudes");
         assert.equal((await visitor("POST", "/api/auth/email-verification/confirm", { token: lastToken(studentAccount.correo, "verify-email") })).status, 200);
         const learner = await login({ correo: studentAccount.correo, rol: "Estudiante" });
         assert.equal((await learner("GET", "/api/piar")).status, 403, "contraseña temporal: debe cambiarla primero");

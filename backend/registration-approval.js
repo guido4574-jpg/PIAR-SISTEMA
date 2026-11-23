@@ -6,8 +6,20 @@ const { recordAdminAccountEvent } = require("./admin-account-audit");
 // `docente`; Psicóloga, Coordinador y Rector se activan sin perfil adicional.
 const APPROVABLE_ROLES = Object.freeze(["Docente", "Psicóloga", "Coordinador", "Rector"]);
 const ROLE_PLACEHOLDERS = APPROVABLE_ROLES.map(() => "?").join(", ");
+// Quién decide: el Administrador, cualquier solicitud; el Rector, solo Docente, Psicóloga y
+// Coordinador. Las solicitudes de perfil Rector las decide únicamente el Administrador, porque no hay
+// un proceso aprobado para validar la identidad de un Rector.
+const DECIDERS = Object.freeze({ Administrador: APPROVABLE_ROLES, Rector: Object.freeze(["Docente", "Psicóloga", "Coordinador"]) });
+// Estados pendientes: «pendiente» (registro con aprobación manual, sin verificación por correo) y
+// «pendiente_verificacion» (solicitudes anteriores cuyo enlace no pudo entregarse). La aprobación no
+// marca el correo como verificado: correo_verificado_at no se modifica.
+const PENDING_STATES = Object.freeze(["pendiente", "pendiente_verificacion"]);
 
-async function decidePendingTeacher(db, userId, decision, approverId, reason = "") {
+function decidableRoles(approverRole) {
+    return DECIDERS[approverRole] || [];
+}
+
+async function decidePendingTeacher(db, userId, decision, approverId, reason = "", approverRole = "Administrador") {
     if (!Number.isSafeInteger(Number(userId)) || Number(userId) <= 0 || !["aprobar", "rechazar"].includes(decision)) {
         return { status: 400, message: "Decisión de aprobación no válida." };
     }
@@ -21,17 +33,23 @@ async function decidePendingTeacher(db, userId, decision, approverId, reason = "
     if (Number(userId) === Number(approverId)) {
         return { status: 403, message: "No puedes decidir sobre tu propia solicitud." };
     }
+    const allowedRoles = decidableRoles(approverRole);
+    if (!allowedRoles.length) return { status: 403, message: "No autorizado para decidir solicitudes." };
     const nextState = decision === "aprobar" ? "activo" : "rechazado";
     const connection = await db.promise().getConnection();
     try {
         await connection.beginTransaction();
         const [users] = await connection.query(
-            `SELECT id_usuario, nombre, documento, correo, rol FROM usuario WHERE id_usuario = ? AND estado = 'pendiente' AND rol IN (${ROLE_PLACEHOLDERS}) AND correo_verificado_at IS NOT NULL FOR UPDATE`,
+            `SELECT id_usuario, nombre, documento, correo, rol, estado FROM usuario WHERE id_usuario = ? AND estado IN ('pendiente', 'pendiente_verificacion') AND rol IN (${ROLE_PLACEHOLDERS}) FOR UPDATE`,
             [Number(userId), ...APPROVABLE_ROLES]
         );
         if (!users.length) {
             await connection.rollback();
             return { status: 404, message: "Solicitud pendiente no encontrada." };
+        }
+        if (!allowedRoles.includes(users[0].rol)) {
+            await connection.rollback();
+            return { status: 403, message: "Las solicitudes de perfil Rector solo las decide el Administrador." };
         }
 
         if (decision === "aprobar" && users[0].rol === "Docente") {
@@ -55,8 +73,8 @@ async function decidePendingTeacher(db, userId, decision, approverId, reason = "
         }
 
         const [result] = await connection.query(
-            "UPDATE usuario SET estado = ?, aprobado_por_usuario_id = ?, rechazado_por_usuario_id = ?, decision_reason = ?, decision_at = CURRENT_TIMESTAMP WHERE id_usuario = ? AND estado = 'pendiente' AND rol = ? AND correo_verificado_at IS NOT NULL",
-            [nextState, decision === "aprobar" ? Number(approverId) : null, decision === "rechazar" ? Number(approverId) : null, decision === "rechazar" ? normalizedReason : null, Number(userId), users[0].rol]
+            "UPDATE usuario SET estado = ?, aprobado_por_usuario_id = ?, rechazado_por_usuario_id = ?, decision_reason = ?, decision_at = CURRENT_TIMESTAMP WHERE id_usuario = ? AND estado = ? AND rol = ?",
+            [nextState, decision === "aprobar" ? Number(approverId) : null, decision === "rechazar" ? Number(approverId) : null, decision === "rechazar" ? normalizedReason : null, Number(userId), users[0].estado, users[0].rol]
         );
         if (!Number(result.affectedRows)) {
             await connection.rollback();
@@ -78,4 +96,4 @@ async function decidePendingTeacher(db, userId, decision, approverId, reason = "
     }
 }
 
-module.exports = { decidePendingTeacher, decidePendingRegistration: decidePendingTeacher, APPROVABLE_ROLES };
+module.exports = { decidePendingTeacher, decidePendingRegistration: decidePendingTeacher, decidableRoles, APPROVABLE_ROLES, PENDING_STATES };

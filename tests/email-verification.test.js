@@ -104,32 +104,39 @@ test("resend verification gives the same response for unknown and pending emails
     else process.env.APP_BASE_URL = oldBase;
 });
 
-test("failed verification delivery leaves account pending and consumes the unsent token", async () => {
+test("failed delivery of a resent verification link keeps the public response and consumes the unsent token", async () => {
+    const calls = [];
+    const db = { promise: () => ({ query: async (sql, values) => {
+        calls.push({ sql, values });
+        if (sql.startsWith("SELECT id_usuario, correo FROM usuario")) return [[{ id_usuario: 51, correo: "fail@example.invalid" }]];
+        return [{ affectedRows: 1, insertId: 2 }];
+    } }) };
+    const result = await requestEmailVerification(db, "fail@example.invalid", async () => { throw new Error("simulated email provider failure"); });
+    assert.equal(result.status, 200);
+    assert.match(result.body.message, /Si existe una solicitud pendiente/);
+    assert.ok(calls.some(call => call.sql.startsWith("UPDATE verificacion_correo SET consumed_at")));
+    assert.ok(!JSON.stringify(result).includes("token"));
+});
+
+test("public registration no longer depends on email delivery: no token is created and the provider is never called", async () => {
     const calls = [];
     const runQuery = async (sql, values) => {
         calls.push({ sql, values });
         if (sql.startsWith("SELECT id_usuario")) return [[]];
         if (sql.startsWith("INSERT INTO usuario")) return [{ insertId: 51 }];
-        if (sql.startsWith("SELECT * FROM usuario")) return [[{ id_usuario: 51 }]];
-        if (sql.startsWith("INSERT INTO verificacion_correo")) return [{ insertId: 2 }];
-        return [{ affectedRows: 1 }];
+        throw new Error("Unexpected SQL: " + sql);
     };
-    const connection = {
-        query: runQuery,
-        beginTransaction: async () => {},
-        commit: async () => {},
-        rollback: async () => {},
-        release: () => {}
-    };
+    const connection = { query: runQuery, beginTransaction: async () => {}, commit: async () => {}, rollback: async () => {}, release: () => {} };
     const db = { promise: () => ({ query: runQuery, getConnection: async () => connection }) };
+    let called = false;
     const result = await register(db, {
-        nombre: "Synthetic", apellidos: "Fail", documento: "SYNTHETIC-MAIL-FAIL",
-        correo: "fail@example.invalid", password: "long enough password", rol: "Docente"
-    }, false, async () => { throw new Error("simulated email provider failure"); });
+        nombre: "Synthetic", apellidos: "Manual", documento: "SYNTHETIC-MANUAL",
+        correo: "manual@example.invalid", password: "long enough password", rol: "Docente"
+    }, false, async () => { called = true; throw new Error("simulated email provider failure"); });
     assert.equal(result.status, 202);
-    assert.equal(result.body.pendingVerification, true);
-    assert.ok(calls.some(call => call.sql.startsWith("UPDATE verificacion_correo SET consumed_at")));
-    assert.ok(!JSON.stringify(result).includes("token"));
+    assert.equal(result.body.pendingApproval, true);
+    assert.equal(called, false);
+    assert.equal(calls.some(call => /verificacion_correo/.test(call.sql)), false);
 });
 
 test("a failed verification tells the link holder whether the link was used, expired or is invalid, without activating anything", async () => {

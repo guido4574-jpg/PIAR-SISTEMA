@@ -3,7 +3,8 @@
 Actualizado: 2026-11-22. La versión anterior está en `docs/historico/MANUAL_USUARIO_hasta_2026-11-22.md`.
 
 **Antes de empezar:**
-- **Correo:** mientras la institución no configure el correo (Gmail SMTP), los enlaces de verificación, recuperación, cambio de correo y avisos de decisión no llegan.
+- **Registro:** las solicitudes de cuenta **no** requieren verificar el correo. Quedan pendientes hasta que un Administrador o Rector las aprueba (decisión D11).
+- **Correo:** mientras la institución no configure el envío (Gmail API, D10), no llegan los enlaces de recuperación ni de cambio de correo, ni los avisos de decisión.
 - **Acceso:** se hace solo con correo y contraseña. Los botones de Google, Microsoft y Apple están ocultos en esta versión.
 
 ## 1. Acceso
@@ -18,16 +19,19 @@ Actualizado: 2026-11-22. La versión anterior está en `docs/historico/MANUAL_US
 
 1. Pulsa **Registrarse**.
 2. Completa nombre, apellidos, documento, correo, el perfil que solicitas y la contraseña. Elegir un perfil no concede permisos.
-3. Abre el enlace de verificación que llega a tu correo. Vence en 24 horas; si no llegó, usa **Reenviar verificación de correo**.
-4. Un Administrador revisa la solicitud. Recibirás un correo con la decisión: aprobada (ya puedes ingresar) o no aprobada.
+3. La solicitud queda **pendiente de aprobación institucional**. No necesitas verificar tu correo ni esperar un enlace.
+4. Un Administrador o un Rector revisa la solicitud. Cuando la aprueba, ya puedes iniciar sesión. Mientras esté pendiente o si se rechaza, el acceso responde «Correo o contraseña incorrectos». Si el correo está configurado, también recibes un aviso de la decisión.
 
-## 3. Administración de cuentas (Administrador)
+## 3. Administración de cuentas
 
-- **Solicitudes:**
-  - Muestra las solicitudes con el correo verificado. Puedes **Aprobar** o **Rechazar**; rechazar exige un motivo.
-  - El motivo queda registrado internamente y **no** se incluye en el correo a la persona.
+- **Solicitudes (Administrador y Rector):**
+  - Muestra las solicitudes pendientes. Puedes **Aprobar** o **Rechazar**; rechazar exige un motivo.
+  - **Antes de aprobar, confirma la identidad de la persona por un canal institucional**: el sistema no verifica el correo en este proceso. La columna «Verificación del correo» es solo informativa y aprobar no marca el correo como verificado.
+  - El Rector decide solicitudes de Docente, Psicólogo(a) y Coordinador. Las de perfil Rector solo las decide el Administrador.
+  - Nadie puede decidir su propia solicitud. Cada decisión registra quién la tomó y cuándo.
+  - El motivo del rechazo queda registrado internamente y **no** se incluye en el correo a la persona.
   - Si el aviso no se pudo enviar, el sistema lo indica para que lo comuniques por otro medio.
-- **Usuarios → Nueva cuenta (personal):** nombre, apellidos, documento, correo, perfil y una contraseña temporal. La persona verifica su correo y después la apruebas en Solicitudes.
+- **Usuarios → Nueva cuenta (personal, solo Administrador):** nombre, apellidos, documento, correo, perfil y una contraseña temporal. La cuenta queda pendiente en Solicitudes, sin enlace de verificación; al aprobarla, la persona ingresa y debe cambiar la contraseña temporal.
 - **Usuarios → Nueva cuenta → Perfil «Estudiante»:**
   1. Elige el estudiante en la lista. Solo aparecen estudiantes activos sin cuenta; al elegirlo se rellenan nombre, apellidos y documento.
   2. Marca la casilla que confirma que la institución tiene la **autorización del acudiente**.
@@ -41,7 +45,7 @@ Actualizado: 2026-11-22. La versión anterior está en `docs/historico/MANUAL_US
 | Rol | Puede |
 |---|---|
 | Administrador | Solicitudes y Usuarios. Gestiona estudiantes, docentes y PIAR (crear, editar, cerrar y asignar docentes). Edita y elimina diagnósticos. Consulta observaciones y seguimientos, pero no los registra |
-| Rector | Gestiona estudiantes y docentes. Crea, edita y cierra PIAR. Edita y elimina diagnósticos. Consulta reportes |
+| Rector | Gestiona estudiantes y docentes. Crea, edita y cierra PIAR. Edita y elimina diagnósticos. Consulta reportes. Aprueba o rechaza solicitudes de Docente, Psicólogo(a) y Coordinador |
 | Coordinador | Lo mismo que Rector, y además: reabre PIAR cerrados, crea diagnósticos y registra observaciones y seguimientos |
 | Psicólogo(a) | Consulta la información institucional. Crea y edita diagnósticos y registra observaciones. No edita PIAR, ajustes, DUA ni seguimientos |
 | Docente | Solo los estudiantes y PIAR asignados. Edita sus PIAR y registra barreras, ajustes razonables, evidencias, DUA, observaciones y seguimientos |
@@ -54,7 +58,7 @@ El sistema aplica estas reglas aunque se intente acceder directamente. Un PIAR c
 | Módulo | Uso |
 |---|---|
 | Dashboard | Totales, seguimientos recientes, avance promedio, distribución por necesidad y alertas. **Nueva observación** solo aparece para quien puede registrarla |
-| Solicitudes | (Administrador) Aprobar o rechazar solicitudes verificadas |
+| Solicitudes | (Administrador y Rector) Aprobar o rechazar solicitudes pendientes |
 | Usuarios | (Administrador) Crear, buscar, filtrar, editar, desactivar y reactivar cuentas |
 | Estudiantes | Búsqueda y perfil. **Nuevo estudiante** y **Editar** para Administrador, Rector y Coordinador |
 | Docentes | Consulta. **Nuevo docente** y **Editar** para Administrador, Rector y Coordinador |

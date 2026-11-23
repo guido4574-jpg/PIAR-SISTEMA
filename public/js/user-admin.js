@@ -95,7 +95,7 @@ function openUserEditModal(userId) {
 }
 
 const USER_CREATE_HELP = Object.freeze({
-    staff: "La persona recibirá un enlace para verificar su correo. Después, la cuenta queda pendiente de aprobación en «Solicitudes». La contraseña temporal debe cambiarse en el primer acceso.",
+    staff: "La cuenta queda pendiente de aprobación en «Solicitudes»; no se envía enlace de verificación. La contraseña temporal debe cambiarse en el primer acceso.",
     student: "La cuenta queda vinculada al estudiante seleccionado. Al verificar su correo puede ingresar con la contraseña temporal, que debe cambiar en el primer acceso. Solo verá su propio PIAR."
 });
 

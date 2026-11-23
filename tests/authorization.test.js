@@ -95,11 +95,25 @@ test("only Admin, Rector and Coordinator manage student and teacher profiles", (
     }
 });
 
-test("Rector cannot review registrations until identity and role provisioning are validated", () => {
+test("registration review: Administrador and Rector decide requests; Rector never reaches account administration", () => {
     assert.equal(status("Administrador", "GET", "/api/usuarios"), 200);
     assert.equal(status("Administrador", "POST", "/api/usuarios/17/aprobacion"), 200);
+    assert.equal(status("Administrador", "GET", "/api/usuarios/solicitudes"), 200);
+    assert.equal(status("Rector", "GET", "/api/usuarios/solicitudes"), 200);
+    assert.equal(status("Rector", "POST", "/api/usuarios/17/aprobacion"), 200);
+    // El Rector no ve el listado completo ni administra cuentas.
     assert.equal(status("Rector", "GET", "/api/usuarios"), 403);
-    assert.equal(status("Rector", "POST", "/api/usuarios/17/aprobacion"), 403);
+    assert.equal(status("Rector", "GET", "/api/usuarios/17"), 403);
+    assert.equal(status("Rector", "POST", "/api/usuarios"), 403);
+    assert.equal(status("Rector", "PUT", "/api/usuarios/17"), 403);
+    assert.equal(status("Rector", "DELETE", "/api/usuarios/17"), 403);
+    assert.equal(status("Rector", "POST", "/api/usuarios/17/reactivacion"), 403);
+    assert.equal(status("Rector", "POST", "/api/usuarios/solicitudes"), 403);
+    assert.equal(status("Rector", "GET", "/api/usuarios/17/aprobacion"), 403);
+    for (const role of ["Coordinador", "Psicóloga", "Docente", "Estudiante"]) {
+        assert.equal(status(role, "GET", "/api/usuarios/solicitudes"), 403, role);
+        assert.equal(status(role, "POST", "/api/usuarios/17/aprobacion"), 403, role);
+    }
 });
 
 test("PIAR teacher access is limited to pedagogical work and assigned adjustments", () => {

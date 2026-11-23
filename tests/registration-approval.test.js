@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const { decidePendingTeacher } = require("../backend/registration-approval");
 
-function fakeDb({ affectedRows = 1, profiles = [], user = { id_usuario: 25, nombre: "Docente Demostración", documento: "DEMO-25", correo: "docente@example.invalid", rol: "Docente" } } = {}) {
+function fakeDb({ affectedRows = 1, profiles = [], user = { id_usuario: 25, nombre: "Docente Demostración", documento: "DEMO-25", correo: "docente@example.invalid", rol: "Docente", estado: "pendiente" } } = {}) {
     const calls = [];
     const connection = {
         beginTransaction: async () => calls.push({ transaction: "begin" }),
@@ -26,15 +26,16 @@ function fakeDb({ affectedRows = 1, profiles = [], user = { id_usuario: 25, nomb
     };
 }
 
-test("only pending verified requests of the four D2 profiles can be approved or rejected", async () => {
+test("only pending requests of the four D2 profiles can be approved or rejected, and approval never marks the email as verified", async () => {
     const db = fakeDb();
     assert.deepEqual(await decidePendingTeacher(db, 25, "aprobar", 3), { status: 200, state: "activo" });
     const lookup = db.calls.find(call => call.sql?.includes("FROM usuario WHERE"));
-    assert.match(lookup.sql, /estado = 'pendiente' AND rol IN \(\?, \?, \?, \?\) AND correo_verificado_at IS NOT NULL FOR UPDATE/);
+    assert.match(lookup.sql, /estado IN \('pendiente', 'pendiente_verificacion'\) AND rol IN \(\?, \?, \?, \?\) FOR UPDATE/);
     assert.deepEqual(lookup.values, [25, "Docente", "Psicóloga", "Coordinador", "Rector"]);
     const decision = db.calls.find(call => call.sql?.startsWith("UPDATE usuario"));
-    assert.deepEqual(decision.values, ["activo", 3, null, null, 25, "Docente"]);
-    assert.match(decision.sql, /AND rol = \? AND correo_verificado_at IS NOT NULL/);
+    assert.deepEqual(decision.values, ["activo", 3, null, null, 25, "pendiente", "Docente"]);
+    assert.match(decision.sql, /decision_at = CURRENT_TIMESTAMP WHERE id_usuario = \? AND estado = \? AND rol = \?/);
+    assert.doesNotMatch(decision.sql, /correo_verificado_at/);
     const audit = db.calls.find(call => call.sql?.startsWith("INSERT INTO admin_account_audit"));
     assert.deepEqual(audit.values.slice(0, 5), [25, "registration_approved", "success", "3", "admin_session"]);
     assert.ok(db.calls.some(call => call.sql?.startsWith("INSERT INTO docente") && call.values[3] === 25));
@@ -42,7 +43,7 @@ test("only pending verified requests of the four D2 profiles can be approved or 
 
     const rejected = fakeDb();
     assert.deepEqual(await decidePendingTeacher(rejected, 25, "rechazar", 4, "No cumple requisitos"), { status: 200, state: "rechazado" });
-    assert.deepEqual(rejected.calls.find(call => call.sql?.startsWith("UPDATE usuario")).values, ["rechazado", null, 4, "No cumple requisitos", 25, "Docente"]);
+    assert.deepEqual(rejected.calls.find(call => call.sql?.startsWith("UPDATE usuario")).values, ["rechazado", null, 4, "No cumple requisitos", 25, "pendiente", "Docente"]);
     assert.equal(rejected.calls.find(call => call.sql?.startsWith("INSERT INTO admin_account_audit")).values[1], "registration_rejected");
     assert.equal(rejected.calls.some(call => call.sql?.startsWith("INSERT INTO docente")), false);
 });
@@ -107,4 +108,47 @@ test("a self decision or a missing request never writes the audit table", async 
     const missing = fakeDb({ user: null });
     assert.equal((await decidePendingTeacher(missing, 25, "rechazar", 3, "Motivo")).status, 404);
     assert.equal(missing.calls.some(call => String(call.sql || "").includes("admin_account_audit")), false);
+});
+
+test("Rector approves or rejects Docente, Psicóloga and Coordinador requests and the decision records who and when", async () => {
+    for (const rol of ["Docente", "Psicóloga", "Coordinador"]) {
+        const db = fakeDb({ user: { id_usuario: 40, nombre: "Solicitud", documento: "D-40", correo: "s@example.invalid", rol, estado: "pendiente" } });
+        assert.deepEqual(await decidePendingTeacher(db, 40, "aprobar", 8, "", "Rector"), { status: 200, state: "activo" }, rol);
+        const decision = db.calls.find(call => call.sql?.startsWith("UPDATE usuario"));
+        assert.equal(decision.values[1], 8, "aprobado_por_usuario_id = Rector");
+        assert.match(decision.sql, /decision_at = CURRENT_TIMESTAMP/);
+        const audit = db.calls.find(call => call.sql?.startsWith("INSERT INTO admin_account_audit"));
+        assert.deepEqual(audit.values.slice(0, 5), [40, "registration_approved", "success", "8", "admin_session"]);
+    }
+    const rejected = fakeDb();
+    assert.deepEqual(await decidePendingTeacher(rejected, 25, "rechazar", 8, "Documento no coincide", "Rector"), { status: 200, state: "rechazado" });
+    assert.equal(rejected.calls.find(call => call.sql?.startsWith("UPDATE usuario")).values[2], 8);
+});
+
+test("Rector cannot decide Rector-profile requests; only Administrador can", async () => {
+    const rectorRequest = { id_usuario: 41, nombre: "Solicitud Rector", documento: "D-41", correo: "r@example.invalid", rol: "Rector", estado: "pendiente" };
+    const byRector = fakeDb({ user: rectorRequest });
+    const denied = await decidePendingTeacher(byRector, 41, "aprobar", 8, "", "Rector");
+    assert.equal(denied.status, 403);
+    assert.equal(byRector.calls.some(call => call.sql?.startsWith("UPDATE usuario")), false);
+    assert.equal(byRector.calls.some(call => String(call.sql || "").includes("admin_account_audit")), false);
+    assert.ok(byRector.calls.some(call => call.transaction === "rollback"));
+    const byAdmin = fakeDb({ user: rectorRequest });
+    assert.deepEqual(await decidePendingTeacher(byAdmin, 41, "aprobar", 3, "", "Administrador"), { status: 200, state: "activo" });
+});
+
+test("roles without review permission are rejected before any database access", async () => {
+    for (const role of ["Coordinador", "Psicóloga", "Docente", "Estudiante", "Desconocido"]) {
+        const db = fakeDb();
+        assert.equal((await decidePendingTeacher(db, 25, "aprobar", 9, "", role)).status, 403, role);
+        assert.equal(db.calls.length, 0, role);
+    }
+});
+
+test("an earlier request stuck in pendiente_verificacion can be decided without marking the email as verified", async () => {
+    const db = fakeDb({ user: { id_usuario: 50, nombre: "Solicitud anterior", documento: "D-50", correo: "a@example.invalid", rol: "Coordinador", estado: "pendiente_verificacion" } });
+    assert.deepEqual(await decidePendingTeacher(db, 50, "aprobar", 3), { status: 200, state: "activo" });
+    const decision = db.calls.find(call => call.sql?.startsWith("UPDATE usuario"));
+    assert.deepEqual(decision.values.slice(-2), ["pendiente_verificacion", "Coordinador"]);
+    assert.doesNotMatch(decision.sql, /correo_verificado_at/);
 });

@@ -43,7 +43,7 @@ async function requestEmailChange(db, { userId, newEmail, actorId }, deliver) {
     const connection = await db.promise().getConnection();
     try {
         await connection.beginTransaction();
-        const [users] = await connection.query("SELECT id_usuario, correo, estado, correo_verificado_at FROM usuario WHERE id_usuario = ? FOR UPDATE", [Number(userId)]);
+        const [users] = await connection.query("SELECT id_usuario, correo, estado, correo_verificado_at, aprobado_por_usuario_id FROM usuario WHERE id_usuario = ? FOR UPDATE", [Number(userId)]);
         if (!users.length) {
             await connection.rollback();
             return { status: 404, body: { ok: false, message: "Usuario no encontrado." } };
@@ -52,9 +52,12 @@ async function requestEmailChange(db, { userId, newEmail, actorId }, deliver) {
             await connection.rollback();
             return { status: 200, body: { ok: true, unchanged: true, message: "El correo no cambió." } };
         }
-        if (users[0].estado === "pendiente_verificacion" || !users[0].correo_verificado_at) {
+        // Una solicitud pendiente no cambia de correo. Una cuenta aprobada por la institución (registro con
+        // aprobación manual) puede no tener el correo verificado: el cambio sigue exigiendo confirmar el
+        // enlace enviado a la dirección nueva, que es la que queda verificada.
+        if (["pendiente_verificacion", "pendiente"].includes(users[0].estado) || (!users[0].correo_verificado_at && !users[0].aprobado_por_usuario_id)) {
             await connection.rollback();
-            return { status: 409, body: { ok: false, message: "La cuenta aún no verificó su correo inicial; el cambio no está disponible." } };
+            return { status: 409, body: { ok: false, message: "La cuenta aún no verificó su correo ni fue aprobada; el cambio no está disponible." } };
         }
         const [taken] = await connection.query("SELECT id_usuario FROM usuario WHERE correo = ? AND id_usuario <> ? LIMIT 1", [correo, Number(userId)]);
         if (taken.length) {

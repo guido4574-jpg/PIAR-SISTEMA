@@ -112,6 +112,17 @@ Recomendación adoptada para que el rol Estudiante sea operable; la institución
   - un campo opcional vaciado al editar un PIAR o un docente se guarda vacío;
   - CSP sin `'unsafe-inline'` en `script-src` (delegación de eventos en `public/js/event-actions.js`).
 
+### D11. Registro con aprobación manual, sin verificación obligatoria del correo (2026-11-23)
+- **Motivo:** el envío de correo no está operativo en producción y las solicitudes quedaban bloqueadas en `pendiente_verificacion`.
+- **Cambio:**
+  - el registro público (D2) y las cuentas de personal creadas por el Administrador (D3) quedan en `estado = 'pendiente'` sin enlace de verificación;
+  - se activan cuando un Administrador o un Rector autorizado las aprueba en «Solicitudes» (`registration-approval.js`);
+  - también se pueden decidir las solicitudes anteriores que seguían en `pendiente_verificacion`.
+- **Separación de estados:** la aprobación no toca `correo_verificado_at`, que solo se llena con un enlace confirmado (por ejemplo, al cambiar de correo). `usuario.estado` y `aprobado_por_usuario_id`/`rechazado_por_usuario_id` + `decision_at` registran la decisión, y `admin_account_audit` la audita.
+- **Rector con límites:** decide solicitudes de Docente, Psicóloga y Coordinador y solo ve esas solicitudes (`GET /api/usuarios/solicitudes`). Las de perfil Rector las decide únicamente el Administrador. El Rector no accede a la administración de cuentas.
+- **Sin cambios:** nadie decide su propia solicitud; el registro público no asigna Administrador ni Estudiante; bcrypt, sesiones, límites y permisos se mantienen; las cuentas pendientes o rechazadas no ingresan. La cuenta Estudiante (D7) conserva la verificación del correo. No hay migración: `estado` ya admite `pendiente`.
+- **Riesgo aceptado:** sin verificación, una persona puede registrar una dirección ajena. Por eso quien aprueba debe confirmar la identidad por un canal institucional, y la interfaz lo advierte.
+
 ### D10. Correo por la API de Gmail con la cuenta institucional (2026-11-23)
 - **Motivo:** Resend exige un dominio verificado y la institución no tiene uno; una dirección `@gmail.com` no puede verificarse en Resend. Gmail SMTP sigue bloqueado en el plan Trial de Railway. La API de Gmail funciona por HTTPS (puerto 443), que Railway no bloquea, y envía desde la cuenta institucional sin comprar un dominio.
 - **Cambio:** se añade `EMAIL_TRANSPORT=gmail` en `backend/email.js`. Usa `fetch` nativo, como Resend, sin la biblioteca `googleapis`: solo hacen falta dos llamadas (renovar el token y `users.messages.send`), y así no se añade una dependencia grande. El resto del sistema sigue usando `deliverEmail()`; Resend y SMTP se conservan.

@@ -226,12 +226,12 @@ test("HTTP usuarios (D3): el Administrador crea solo los cuatro perfiles, con au
 
     const created = await server.request("POST", "/api/usuarios", { token: ADMIN, body: { ...body, rol: "Rector" } });
     assert.equal(created.status, 201);
-    assert.equal(created.body.pendingVerification, true);
+    assert.equal(created.body.pendingApproval, true);
     const insert = server.sql.find(item => item.kind === "user-insert");
     assert.match(insert.sql, /password_change_required\) VALUES \(\?, \?, \?, \?, \?, \?, \?, 1\)$/);
-    assert.deepEqual([insert.params[0], insert.params[3], insert.params[6]], ["Rosa Rectora Sintética", "Rector", "pendiente_verificacion"]);
+    assert.deepEqual([insert.params[0], insert.params[3], insert.params[6]], ["Rosa Rectora Sintética", "Rector", "pendiente"]);
     const audit = server.sql.find(item => item.kind === "admin-audit");
-    assert.deepEqual(audit.params.slice(0, 5), [950, "account_created", "pending_verification", "900", "admin_session"]);
+    assert.deepEqual(audit.params.slice(0, 5), [950, "account_created", "pending_approval", "900", "admin_session"]);
     assert.doesNotMatch(JSON.stringify(created.body), /hash|password|token/i);
 });
 

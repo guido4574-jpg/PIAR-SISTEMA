@@ -50,6 +50,7 @@ Actualizado: 2026-11-22. La versión anterior, con el historial de octubre, est�
 | Recurso | Administrador | Rector | Coordinador | Psicólogo(a) | Docente | Estudiante |
 |---|---|---|---|---|---|---|
 | Solicitudes y usuarios (`/api/usuarios`) | Todo | — | — | — | — | — |
+| Solicitudes pendientes (`GET /api/usuarios/solicitudes`, `POST /api/usuarios/:id/aprobacion`) | Todas | Docente, Psicólogo(a) y Coordinador | — | — | — | — |
 | Estudiantes y docentes: consultar | ✔ | ✔ | ✔ | ✔ | Solo los asignados o su propio perfil | — |
 | Estudiantes y docentes: crear, editar, desactivar | ✔ | ✔ | ✔ | — | — | — |
 | PIAR: consultar | ✔ | ✔ | ✔ | ✔ | Asignados | Solo el propio, con proyección reducida |
@@ -69,10 +70,10 @@ Actualizado: 2026-11-22. La versión anterior, con el historial de octubre, est�
 ## 5. Cuentas y flujos
 
 - **Registro público (D2):** abierto a Docente, Psicólogo(a), Coordinador y Rector.
-  1. La cuenta empieza en `pendiente_verificacion`.
-  2. Al verificar el correo pasa a `pendiente`.
-  3. El Administrador la aprueba (`activo`) o la rechaza con motivo (`rechazado`). Se audita en `admin_account_audit` y se envía un aviso por correo sin el motivo.
-- **Creación por el Administrador (D3):** los mismos perfiles, con contraseña temporal (`password_change_required = 1`).
+  1. La cuenta empieza en `pendiente`, sin enlace de verificación (D11). `correo_verificado_at` queda en NULL.
+  2. Un Administrador, o un Rector para perfiles distintos de Rector, la aprueba (`activo`) o la rechaza con motivo (`rechazado`). Se guardan `aprobado_por_usuario_id`/`rechazado_por_usuario_id` y `decision_at`, se audita en `admin_account_audit` y, si hay transporte de correo, se envía un aviso sin el motivo.
+  3. La aprobación no marca el correo como verificado. Las solicitudes anteriores en `pendiente_verificacion` también se pueden decidir.
+- **Creación por el Administrador (D3):** los mismos perfiles, con contraseña temporal (`password_change_required = 1`). Queda en `pendiente` (auditoría `account_created` / `pending_approval`) y se aprueba en «Solicitudes».
 - **Cuenta Estudiante (D7):**
   - `POST /api/usuarios` con `rol: "Estudiante"`, `id_estudiante` y `autorizacion_acudiente`.
   - El estudiante debe existir, estar activo y no tener otra cuenta.

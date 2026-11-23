@@ -335,7 +335,13 @@ async function cleanupFixture(db, fixture) {
         [`${marker}R`, `${marker.toLowerCase()}r@example.invalid`]
     );
     const registeredId = Number(registered[0][0]?.id_usuario || 0);
-    const userIds = [...new Set([...ids.users, ...(registeredId ? [registeredId] : [])])];
+    // D11: solicitud sintética de perfil Rector que rechaza el Administrador.
+    const rectorRequest = await db.execute(
+        "SELECT id_usuario FROM usuario WHERE documento = ? AND correo = ? AND rol = 'Rector'",
+        [`${marker}Q`, `${marker.toLowerCase()}q@example.invalid`]
+    );
+    const rectorRequestId = Number(rectorRequest[0][0]?.id_usuario || 0);
+    const userIds = [...new Set([...ids.users, ...(registeredId ? [registeredId] : []), ...(rectorRequestId ? [rectorRequestId] : [])])];
 
     async function deleteIds(table, column, values) {
         if (!values.length) return;
@@ -351,6 +357,7 @@ async function cleanupFixture(db, fixture) {
         ...Object.values(fixture.users).map(user => user.email),
         `${marker.toLowerCase()}r@example.invalid`,
         `${marker.toLowerCase()}x@example.invalid`,
+        `${marker.toLowerCase()}q@example.invalid`,
         `unknown-${marker}@example.invalid`
     ].filter(Boolean).map(email => String(email).trim().toLowerCase());
     const syntheticEmailHashes = syntheticEmails.map(email => crypto.createHash("sha256").update(email).digest("hex"));
@@ -1041,27 +1048,59 @@ test("integración HTTP y SQL aislada en piar_test", async t => {
             assert.equal(newUsers.length, 1);
             const registeredId = Number(newUsers[0].id_usuario);
             assert.equal(newUsers[0].rol, "Docente", "El registro público no debe conceder roles privilegiados.");
-            assert.equal(newUsers[0].estado, "pendiente_verificacion");
+            // D11: la solicitud queda pendiente de aprobación, sin enlace de verificación y sin marcar el correo.
+            assert.equal(newUsers[0].estado, "pendiente");
             assert.equal(newUsers[0].correo_verificado_at, null);
-            const verificationEmail = deliveredMessages.find(message => message.to === email && message.subject === "Verifica tu correo de PIAR");
-            assert.ok(verificationEmail, "El correo de verificación debe llegar al proveedor local simulado.");
-            const verificationToken = verificationEmail.text.match(/#verify-email=([A-Za-z0-9_-]+)/)?.[1];
-            assert.ok(verificationToken);
-            const verified = await fetchJson("/api/auth/email-verification/confirm", { method: "POST", body: { token: verificationToken } });
-            assert.equal(verified.status, 200);
-            assert.ok(!JSON.stringify(verified.payload).includes(verificationToken));
-            const [verifiedUser] = await db.execute("SELECT estado, correo_verificado_at FROM usuario WHERE id_usuario = ?", [registeredId]);
-            assert.equal(verifiedUser[0].estado, "pendiente");
-            assert.ok(verifiedUser[0].correo_verificado_at);
-            assert.equal((await fetchJson("/api/auth/email-verification/confirm", { method: "POST", body: { token: verificationToken } })).status, 400);
+            assert.equal(deliveredMessages.some(message => message.to === email), false, "El registro no envía enlace de verificación.");
+            const [verificationRows] = await db.execute("SELECT COUNT(*) AS total FROM verificacion_correo WHERE id_usuario = ?", [registeredId]);
+            assert.equal(Number(verificationRows[0].total), 0);
             assert.equal((await fetchJson("/api/auth/login", { method: "POST", body: { correo: email, password: registrationPassword } })).status, 401);
+            // El Rector revisa solicitudes, pero no administra cuentas ni ve el listado completo.
             assert.equal((await fetchJson("/api/usuarios", { cookie: rectorCookie })).status, 403);
+            assert.equal((await fetchJson(`/api/usuarios/${registeredId}`, { cookie: rectorCookie })).status, 403);
+            const rectorQueue = await fetchJson("/api/usuarios/solicitudes", { cookie: rectorCookie });
+            assert.equal(rectorQueue.status, 200);
+            assert.ok(rectorQueue.payload.data.some(item => Number(item.id_usuario) === registeredId));
+            assert.equal(rectorQueue.payload.data.some(item => !["Docente", "Psicóloga", "Coordinador"].includes(item.rol)), false);
+            assert.equal((await fetchJson("/api/usuarios/solicitudes", { cookie: coordinatorCookie })).status, 403);
             assert.equal((await fetchJson(`/api/usuarios/${registeredId}/aprobacion`, {
-                method: "POST", cookie: rectorCookie, body: { decision: "aprobar" }
+                method: "POST", cookie: coordinatorCookie, body: { decision: "aprobar" }
             })).status, 403);
             assert.equal((await fetchJson(`/api/usuarios/${registeredId}/aprobacion`, {
-                method: "POST", cookie: adminCookie, body: { decision: "aprobar" }
+                method: "POST", cookie: rectorCookie, body: { decision: "aprobar" }
             })).status, 200);
+            const [decided] = await db.execute("SELECT estado, correo_verificado_at, aprobado_por_usuario_id, decision_at FROM usuario WHERE id_usuario = ?", [registeredId]);
+            assert.equal(decided[0].estado, "activo");
+            assert.equal(decided[0].correo_verificado_at, null, "La aprobación no marca el correo como verificado.");
+            assert.equal(Number(decided[0].aprobado_por_usuario_id), Number(fixture.users.Rector1.id));
+            assert.ok(decided[0].decision_at);
+            const [approvalAudit] = await db.execute("SELECT operation, outcome, operator_identity_claim FROM admin_account_audit WHERE target_user_id = ? AND operation = 'registration_approved'", [registeredId]);
+            assert.equal(approvalAudit.length, 1);
+            assert.equal(approvalAudit[0].operator_identity_claim, String(fixture.users.Rector1.id));
+            assert.equal((await fetchJson(`/api/usuarios/${registeredId}/aprobacion`, {
+                method: "POST", cookie: adminCookie, body: { decision: "aprobar" }
+            })).status, 404, "Una solicitud ya decidida no se vuelve a decidir.");
+
+            // Una solicitud de perfil Rector solo la decide el Administrador.
+            const rectorRequestEmail = `${fixture.marker.toLowerCase()}q@example.invalid`;
+            const rectorRequestDocument = `${fixture.marker}Q`;
+            assert.equal((await fetchJson("/api/auth/register", {
+                method: "POST", body: { nombre: "Synthetic", apellidos: fixture.marker, documento: rectorRequestDocument, correo: rectorRequestEmail, password: registrationPassword, rol: "Rector" }
+            })).status, 202);
+            const [rectorRequestRows] = await db.execute("SELECT id_usuario, estado FROM usuario WHERE documento = ? AND correo = ?", [rectorRequestDocument, rectorRequestEmail]);
+            const rectorRequestId = Number(rectorRequestRows[0].id_usuario);
+            assert.equal(rectorRequestRows[0].estado, "pendiente");
+            assert.equal((await fetchJson(`/api/usuarios/${rectorRequestId}/aprobacion`, {
+                method: "POST", cookie: rectorCookie, body: { decision: "aprobar" }
+            })).status, 403);
+            assert.equal((await fetchJson(`/api/usuarios/${rectorRequestId}/aprobacion`, {
+                method: "POST", cookie: adminCookie, body: { decision: "rechazar", reason: "Solicitud sintética rechazada" }
+            })).status, 200);
+            const [rejectedRequest] = await db.execute("SELECT estado, rechazado_por_usuario_id, correo_verificado_at FROM usuario WHERE id_usuario = ?", [rectorRequestId]);
+            assert.equal(rejectedRequest[0].estado, "rechazado");
+            assert.equal(Number(rejectedRequest[0].rechazado_por_usuario_id), Number(fixture.users.Administrador0.id));
+            assert.equal(rejectedRequest[0].correo_verificado_at, null);
+            assert.equal((await fetchJson("/api/auth/login", { method: "POST", body: { correo: rectorRequestEmail, password: registrationPassword } })).status, 401);
             const [approvedProfiles] = await db.execute("SELECT id_docente, id_usuario, estado FROM docente WHERE id_usuario = ?", [registeredId]);
             assert.equal(approvedProfiles.length, 1, "La aprobación debe aprovisionar exactamente un perfil docente vinculado.");
             assert.equal(Number(approvedProfiles[0].id_usuario), registeredId);

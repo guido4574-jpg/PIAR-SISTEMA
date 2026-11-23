@@ -31,8 +31,11 @@ test("browser-stored settings cannot override the canonical institution name", (
     assert.match(appSource, /value="\$\{escapeHTML\(state\.institution\.name\)\}" readonly/);
 });
 
-test("Rector approval remains disabled until an identity and authorization process is established", () => {
+test("Rector reviews registrations with limits: Rector-profile requests stay reserved to Administrador", () => {
     const source = fs.readFileSync(path.join(__dirname, "../backend/authorization.js"), "utf8");
-    assert.match(source, /request review restricted to Administrador/);
-    assert.match(source, /approval\) return method === "POST" && role === "Administrador"/);
+    assert.match(source, /approval\) return method === "POST" && includesRole\(\["Administrador", "Rector"\], role\)/);
+    const { decidableRoles } = require("../backend/registration-approval");
+    assert.deepEqual(decidableRoles("Administrador"), ["Docente", "Psicóloga", "Coordinador", "Rector"]);
+    assert.deepEqual(decidableRoles("Rector"), ["Docente", "Psicóloga", "Coordinador"]);
+    for (const role of ["Coordinador", "Psicóloga", "Docente", "Estudiante", undefined]) assert.deepEqual(decidableRoles(role), [], String(role));
 });

@@ -64,6 +64,7 @@ function apiDelete(name, id) { return apiRequest(`${name}/${id}`, "DELETE"); }
 function apiGetIdentities() { return apiList("authIdentities"); }
 function apiUnlinkIdentity(id, password) { return apiRequest(`authIdentities/${Number(id)}`, "DELETE", { password }); }
 function apiGetUsers() { return apiList("users"); }
+function apiGetRegistrationRequests() { return apiList("users/solicitudes"); }
 function apiDecideUserApproval(id, decision, reason) { return apiRequest(`users/${id}/aprobacion`, "POST", { decision, reason }); }
 function apiGetStudents() { return apiList("students"); }
 function apiGetTeachers() { return apiList("teachers"); }

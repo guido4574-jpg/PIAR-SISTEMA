@@ -75,9 +75,12 @@ function sessionCookie(token, maxAgeSeconds) {
 }
 
 async function register(db, payload, _legacyAllowPrivilegedRole = false, deliver = deliverVerificationLink, options = {}) {
-    // Decisión D3: un Administrador autenticado crea la cuenta con el mismo flujo
-    // (verificación del correo y aprobación posterior). La contraseña que fija es
-    // temporal: se exige cambiarla en el primer acceso y la creación se audita.
+    // Registro con aprobación manual: las solicitudes del personal (registro público, D2, y cuentas
+    // creadas por el Administrador, D3) quedan en estado «pendiente» sin enlace de verificación y
+    // solo se activan cuando un Administrador o Rector autorizado las aprueba en «Solicitudes».
+    // El correo NO se marca como verificado (correo_verificado_at sigue en NULL).
+    // La cuenta Estudiante (D7) conserva la verificación del correo. La contraseña que fija el
+    // Administrador es temporal: se exige cambiarla en el primer acceso y la creación se audita.
     const actorId = options.actorId === undefined ? null : Number(options.actorId);
     const institutional = actorId !== null;
     if (institutional && (!Number.isSafeInteger(actorId) || actorId <= 0)) throw new Error("Institutional account creator is invalid.");
@@ -121,9 +124,10 @@ async function register(db, payload, _legacyAllowPrivilegedRole = false, deliver
 
     const passwordHash = await bcrypt.hash(password, 12);
     const fullName = `${nombre} ${apellidos}`.trim();
-    const estado = "pendiente_verificacion";
-    const token = crypto.randomBytes(32).toString("base64url");
-    const tokenHash = hashToken(token);
+    const manualApproval = !studentAccount;
+    const estado = manualApproval ? "pendiente" : "pendiente_verificacion";
+    const token = manualApproval ? null : crypto.randomBytes(32).toString("base64url");
+    const tokenHash = token ? hashToken(token) : null;
     const connection = await db.promise().getConnection();
     let result;
     try {
@@ -152,10 +156,12 @@ async function register(db, payload, _legacyAllowPrivilegedRole = false, deliver
             const [linked] = await connection.query("UPDATE estudiante SET id_usuario = ? WHERE id_estudiante = ? AND id_usuario IS NULL", [result.insertId, studentId]);
             if (Number(linked.affectedRows) !== 1) throw new Error("Student account link was not applied.");
         }
-        await connection.query("INSERT INTO verificacion_correo (id_usuario, token_hash, expires_at) VALUES (?, ?, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? HOUR))", [result.insertId, tokenHash, EMAIL_VERIFICATION_HOURS]);
+        if (!manualApproval) {
+            await connection.query("INSERT INTO verificacion_correo (id_usuario, token_hash, expires_at) VALUES (?, ?, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? HOUR))", [result.insertId, tokenHash, EMAIL_VERIFICATION_HOURS]);
+        }
         if (institutional) {
             await recordAdminAccountEvent(connection, {
-                targetUserId: Number(result.insertId), operation: "account_created", outcome: "pending_verification",
+                targetUserId: Number(result.insertId), operation: "account_created", outcome: manualApproval ? "pending_approval" : "pending_verification",
                 operatorIdentityClaim: String(actorId), operatorIdentitySource: "admin_session",
                 authorizationReference: studentAccount ? "autorizacion_acudiente_confirmada" : null,
                 // El vínculo queda en estudiante.id_usuario; la sesión administrativa no admite texto libre.
@@ -173,6 +179,7 @@ async function register(db, payload, _legacyAllowPrivilegedRole = false, deliver
     } finally {
         connection.release();
     }
+    if (manualApproval) return institutional ? institutionalAccountCreated() : registrationAccepted();
     try {
         await deliver(correo, `${applicationBaseUrl()}/#verify-email=${encodeURIComponent(token)}`);
     } catch {
@@ -194,11 +201,11 @@ function institutionalDuplicate() {
 }
 
 function institutionalAccountCreated() {
-    return { status: 201, body: { ok: true, pendingVerification: true, message: "Cuenta creada. Se envió el enlace de verificación; después la cuenta requiere aprobación. La contraseña asignada es temporal y debe cambiarse en el primer acceso." } };
+    return { status: 201, body: { ok: true, pendingApproval: true, message: "Cuenta creada y pendiente de aprobación en «Solicitudes». No se envía enlace de verificación. La contraseña asignada es temporal y debe cambiarse en el primer acceso." } };
 }
 
 function registrationAccepted() {
-    return { status: 202, body: { ok: true, pendingVerification: true, message: "Solicitud recibida. Si el correo puede usarse, te enviamos un enlace de verificación que vence en 24 horas. Revisa tu bandeja de entrada y la carpeta de spam o correo no deseado. Si no llega en unos minutos, usa «Reenviar verificación de correo». Después, la cuenta requiere aprobación institucional." } };
+    return { status: 202, body: { ok: true, pendingApproval: true, message: "Solicitud recibida. La cuenta queda pendiente de aprobación institucional: podrás iniciar sesión cuando un Administrador o Rector la apruebe. No necesitas verificar tu correo." } };
 }
 
 async function createSession(db, userId) {
