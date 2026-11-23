@@ -1955,7 +1955,15 @@ async function confirmEmailVerification(event) {
         history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
         renderLogin("login", result.message || "Correo verificado. La cuenta requiere aprobación institucional.");
     } catch (error) {
-        showToastMessage(error.message || "No fue posible verificar el correo.", "warning");
+        const message = error.message || "No fue posible verificar el correo.";
+        if (error.status === 0) {
+            // Sin conexión: se conserva el enlace para reintentar.
+            showToastMessage(message, "warning");
+            return;
+        }
+        history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+        // Enlace vencido o inválido: se ofrece directamente el reenvío; enlace usado: vuelve al acceso.
+        renderLogin(!changeToken && (error.reason === "vencido" || error.reason === "invalido") ? "resend-verification" : "login", message);
     }
 }
 

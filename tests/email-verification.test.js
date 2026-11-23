@@ -5,13 +5,14 @@ const crypto = require("node:crypto");
 const test = require("node:test");
 const { verifyEmail, requestEmailVerification, register, invalidateInitialAdminVerification } = require("../backend/auth");
 
-function transactionalDb({ tokenRow, claimRows = 1, updateRows = 1 }) {
+function transactionalDb({ tokenRow, claimRows = 1, updateRows = 1, tokenState = null }) {
     const calls = [];
     const actions = [];
     const connection = {
         query: async (sql, values = []) => {
             calls.push({ sql, values });
             if (sql.startsWith("SELECT v.id_verificacion")) return [tokenRow ? [tokenRow] : []];
+            if (sql.startsWith("SELECT consumed_at IS NOT NULL")) return [tokenState ? [tokenState] : []];
             if (sql.startsWith("UPDATE verificacion_correo SET consumed_at")) return [{ affectedRows: claimRows }];
             if (sql.startsWith("UPDATE usuario SET correo_verificado_at")) return [{ affectedRows: updateRows }];
             if (sql.startsWith("INSERT INTO admin_account_audit")) return [{ insertId: 1 }];
@@ -129,4 +130,46 @@ test("failed verification delivery leaves account pending and consumes the unsen
     assert.equal(result.body.pendingVerification, true);
     assert.ok(calls.some(call => call.sql.startsWith("UPDATE verificacion_correo SET consumed_at")));
     assert.ok(!JSON.stringify(result).includes("token"));
+});
+
+test("a failed verification tells the link holder whether the link was used, expired or is invalid, without activating anything", async () => {
+    const token = crypto.randomBytes(32).toString("base64url");
+    const used = transactionalDb({ tokenRow: null, tokenState: { usado: 1, vencido: 0 } });
+    const usedResult = await verifyEmail(used, token);
+    assert.equal(usedResult.status, 400);
+    assert.equal(usedResult.body.reason, "usado");
+    assert.match(usedResult.body.message, /ya se utilizó/);
+    const stateQuery = used.calls.find(call => call.sql.startsWith("SELECT consumed_at IS NOT NULL"));
+    assert.equal(stateQuery.values[0], crypto.createHash("sha256").update(token).digest("hex"));
+    assert.equal(used.calls.some(call => call.sql.startsWith("UPDATE")), false);
+    assert.ok(used.actions.includes("rollback"));
+
+    const expired = transactionalDb({ tokenRow: null, tokenState: { usado: 0, vencido: 1 } });
+    const expiredResult = await verifyEmail(expired, token);
+    assert.equal(expiredResult.body.reason, "vencido");
+    assert.match(expiredResult.body.message, /venció .*24 horas.*Reenviar verificación/);
+
+    const unknown = transactionalDb({ tokenRow: null, tokenState: null });
+    const unknownResult = await verifyEmail(unknown, token);
+    assert.equal(unknownResult.body.reason, "invalido");
+    assert.match(unknownResult.body.message, /no es válido/);
+
+    const malformed = await verifyEmail(transactionalDb({ tokenRow: null }), "corto");
+    assert.equal(malformed.body.reason, "invalido");
+
+    const raced = transactionalDb({ tokenRow: { id_verificacion: 5, id_usuario: 9, rol: "Docente" }, claimRows: 0 });
+    assert.equal((await verifyEmail(raced, token)).body.reason, "usado");
+    for (const result of [usedResult, expiredResult, unknownResult]) assert.ok(!JSON.stringify(result).includes(token));
+});
+
+test("the verification email explains the single-use link, its expiry, the approval step and how to ask for a new one", () => {
+    const { verificationEmailText } = require("../backend/auth");
+    const link = "https://piar.example.invalid/#verify-email=TOKEN_DE_PRUEBA";
+    const text = verificationEmailText(link);
+    assert.ok(text.includes(link));
+    assert.match(text, /una sola vez/);
+    assert.match(text, /24 horas/);
+    assert.match(text, /aprobación de la institución/);
+    assert.match(text, /Reenviar verificación de correo/);
+    assert.match(text, /Si no solicitaste esta cuenta/);
 });

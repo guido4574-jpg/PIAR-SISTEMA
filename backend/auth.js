@@ -198,7 +198,7 @@ function institutionalAccountCreated() {
 }
 
 function registrationAccepted() {
-    return { status: 202, body: { ok: true, pendingVerification: true, message: "Solicitud recibida. Si puedes continuar con el correo indicado, revisa tu bandeja y luego espera la aprobación institucional." } };
+    return { status: 202, body: { ok: true, pendingVerification: true, message: "Solicitud recibida. Si el correo puede usarse, te enviamos un enlace de verificación que vence en 24 horas. Revisa tu bandeja de entrada y la carpeta de spam o correo no deseado. Si no llega en unos minutos, usa «Reenviar verificación de correo». Después, la cuenta requiere aprobación institucional." } };
 }
 
 async function createSession(db, userId) {
@@ -285,9 +285,26 @@ async function logout(db, request) {
     }
 }
 
+function verificationEmailText(link) {
+    return [
+        "Hola:",
+        "",
+        "Recibimos una solicitud de cuenta en el Sistema PIAR con esta dirección de correo.",
+        `Para confirmarla, abre este enlace (sirve una sola vez y vence en ${EMAIL_VERIFICATION_HOURS} horas):`,
+        "",
+        link,
+        "",
+        "Después de verificar el correo, la cuenta puede requerir la aprobación de la institución antes de ingresar.",
+        "Si el enlace venció, pide uno nuevo en la pantalla de acceso con «Reenviar verificación de correo».",
+        "Si no solicitaste esta cuenta, ignora este mensaje: no se activará.",
+        "",
+        "Sistema PIAR · Mensaje automático, no respondas a este correo."
+    ].join("\n");
+}
+
 async function deliverVerificationLink(email, link) {
     applicationBaseUrl();
-    await deliverEmail(email, "Verifica tu correo de PIAR", `Confirma tu correo en este enlace. Vence en ${EMAIL_VERIFICATION_HOURS} horas: ${link}`);
+    await deliverEmail(email, "Verifica tu correo de PIAR", verificationEmailText(link));
 }
 
 function applicationBaseUrl() {
@@ -316,7 +333,7 @@ async function invalidateInitialAdminVerification(connection, userId, token) {
 
 async function requestEmailVerification(db, correo, deliver = deliverVerificationLink) {
     const normalized = normalizeEmail(correo);
-    const generic = { status: 200, body: { ok: true, message: "Si existe una solicitud pendiente de verificación, enviaremos instrucciones." } };
+    const generic = { status: 200, body: { ok: true, message: "Si existe una solicitud pendiente de verificación, enviaremos un nuevo enlace. Revisa también la carpeta de spam o correo no deseado." } };
     if (!/^\S+@\S+\.\S+$/.test(normalized)) return generic;
     const users = await query(db, "SELECT id_usuario, correo FROM usuario WHERE correo = ? AND estado = 'pendiente_verificacion' LIMIT 1", [normalized]);
     if (!users.length) return generic;
@@ -328,10 +345,26 @@ async function requestEmailVerification(db, correo, deliver = deliverVerificatio
     return generic;
 }
 
+const VERIFICATION_INVALID = "El enlace de verificación no es válido. Revisa que lo copiaste completo o pide uno nuevo con «Reenviar verificación de correo».";
+
+function verificationFailureReason(state) {
+    if (!state) return "invalido";
+    if (Number(state.usado)) return "usado";
+    if (Number(state.vencido)) return "vencido";
+    return "invalido";
+}
+
+function verificationFailureMessage(state) {
+    const reason = verificationFailureReason(state);
+    if (reason === "usado") return "Este enlace ya se utilizó. Si ya verificaste tu correo, espera la aprobación o inicia sesión; si no, pide uno nuevo con «Reenviar verificación de correo».";
+    if (reason === "vencido") return `El enlace venció (dura ${EMAIL_VERIFICATION_HOURS} horas). Pide uno nuevo con «Reenviar verificación de correo».`;
+    return VERIFICATION_INVALID;
+}
+
 async function verifyEmail(db, token) {
     const normalizedToken = String(token || "");
     if (!/^[A-Za-z0-9_-]{40,60}$/.test(normalizedToken)) {
-        return { status: 400, body: { ok: false, message: "El enlace de verificación no es válido o venció." } };
+        return { status: 400, body: { ok: false, reason: "invalido", message: VERIFICATION_INVALID } };
     }
     const connection = await db.promise().getConnection();
     try {
@@ -341,16 +374,22 @@ async function verifyEmail(db, token) {
             [hashToken(normalizedToken)]
         );
         if (!rows.length) {
+            // Solo quien tiene el enlace puede distinguir estos casos; no revela nada de otras cuentas.
+            const [states] = await connection.query(
+                "SELECT consumed_at IS NOT NULL AS usado, expires_at <= CURRENT_TIMESTAMP AS vencido FROM verificacion_correo WHERE token_hash = ? LIMIT 1",
+                [hashToken(normalizedToken)]
+            );
             await connection.rollback();
-            return { status: 400, body: { ok: false, message: "El enlace de verificación no es válido o venció." } };
+            return { status: 400, body: { ok: false, reason: verificationFailureReason(states[0]), message: verificationFailureMessage(states[0]) } };
         }
         const [claimed] = await connection.query(
             "UPDATE verificacion_correo SET consumed_at = CURRENT_TIMESTAMP WHERE id_verificacion = ? AND consumed_at IS NULL AND expires_at > CURRENT_TIMESTAMP",
             [rows[0].id_verificacion]
         );
         if (Number(claimed.affectedRows) !== 1) {
+            // Otra petición simultánea consumió el mismo enlace.
             await connection.rollback();
-            return { status: 400, body: { ok: false, message: "El enlace de verificación no es válido o venció." } };
+            return { status: 400, body: { ok: false, reason: "usado", message: verificationFailureMessage({ usado: 1 }) } };
         }
         const [updated] = await connection.query(
             "UPDATE usuario SET correo_verificado_at = CURRENT_TIMESTAMP, estado = CASE WHEN rol IN ('Administrador', 'Estudiante') THEN 'activo' ELSE 'pendiente' END WHERE id_usuario = ? AND estado = 'pendiente_verificacion'",
@@ -464,6 +503,7 @@ module.exports = {
     resetPassword,
     sessionCookie,
     verifyEmail,
+    verificationEmailText,
     requestEmailVerification,
     deliverEmail,
     deliverInitialAdminVerification,

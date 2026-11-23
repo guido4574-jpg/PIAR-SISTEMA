@@ -65,7 +65,7 @@ El segundo comando lista solo los **nombres** de las variables, no sus valores. 
 | `PIAR_DIAGNOSTICO_PROXY` | `1` solo durante la verificación del §8; luego se retira | — |
 | `MAINTENANCE_INTERVAL_MINUTES` | `60` | Fijo |
 | `SECURITY_EVENT_RETENTION_DAYS` | `365` | Fijo |
-| `EMAIL_TRANSPORT` | `resend` | Opción B del §0. Con plan Pro se puede usar `smtp` (Gmail; variables `EMAIL_SMTP_*`, §7.2) |
+| `EMAIL_TRANSPORT` | `gmail` (sin dominio propio, §7.3) o `resend` (con dominio verificado, §7.1) | Con plan Pro se puede usar `smtp` (Gmail; variables `EMAIL_SMTP_*`, §7.2) |
 | `EMAIL_FROM` | Dirección de un dominio **verificado** en Resend, por ejemplo `piar@<subdominio verificado>` | Con `onboarding@resend.dev` solo llega al dueño de la cuenta de Resend |
 | `EMAIL_FROM_NAME` | Nombre visible, por ejemplo `PIAR Colegio Reinaldo Matiz` | Opcional |
 | `RESEND_API_KEY` | Clave `re_…` con permiso **Sending access** | Solo en el panel. Se carga con `--stdin` |
@@ -274,6 +274,60 @@ Remove-Item Env:EMAIL_SMTP_PASSWORD, Env:PIAR_CONFIRMAR_ENVIO
 4. **Prueba funcional** 🔒: «¿Olvidaste tu contraseña?» con una cuenta de prueba controlada. Hay que comprobar que el enlace llega, que funciona una sola vez y que vence en 30 minutos.
 
 **Límites:** Gmail admite unos 500 destinatarios al día en cuentas personales. Para volúmenes mayores, la opción B del §0.
+
+### 7.3 Opción vigente sin dominio: API de Gmail con la cuenta institucional (D10)
+
+Envía desde la cuenta de Gmail institucional por HTTPS. No usa SMTP ni contraseñas de Gmail. Variables: `EMAIL_TRANSPORT=gmail`, `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `EMAIL_FROM` (la cuenta institucional) y, opcional, `EMAIL_FROM_NAME`.
+
+**A. Google Cloud Console** (con la cuenta institucional, en https://console.cloud.google.com):
+1. **Proyecto:** crear uno nuevo, por ejemplo «PIAR Correo».
+2. **API:** «APIs y servicios → Biblioteca → Gmail API → Habilitar».
+3. **Pantalla de consentimiento** («Google Auth Platform» u «OAuth consent screen»):
+   - tipo de usuario **Externo**;
+   - nombre de la aplicación «Sistema PIAR»; correo de asistencia y del desarrollador: la cuenta institucional;
+   - en «Acceso a los datos», agregar solo `https://www.googleapis.com/auth/gmail.send` (y los básicos `openid` y `.../auth/userinfo.email`);
+   - en «Público» o «Usuarios de prueba», agregar la cuenta institucional.
+4. **Cliente OAuth:** «Credenciales → Crear credenciales → ID de cliente de OAuth → Aplicación web», nombre «PIAR correo»:
+   - URI de redirección autorizada, **exacta**: `http://localhost:8765/oauth2/callback`;
+   - copiar el ID de cliente y el secreto **solo** al gestor de contraseñas.
+5. **Estado de publicación:** «Público → Publicar aplicación» (pasar a **En producción**).
+   - En estado «Prueba», Google invalida el refresh token **a los 7 días** y el envío dejaría de funcionar.
+   - `gmail.send` es un permiso sensible. Sin verificación de Google, la aplicación publicada funciona para la propia cuenta: al autorizar aparece «Google no verificó esta aplicación» → «Configuración avanzada» → «Ir a Sistema PIAR (no seguro)». Es esperado, porque la aplicación es de la propia institución. La verificación formal solo hace falta si otras cuentas fueran a autorizarla, y este diseño no lo requiere.
+
+**B. Autorización en este equipo** (una sola vez; en PowerShell, sin guardar nada en el repositorio):
+```powershell
+$env:GMAIL_CLIENT_ID = Read-Host "ID de cliente"
+$s = Read-Host "Secreto del cliente" -AsSecureString
+$env:GMAIL_CLIENT_SECRET = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s))
+$env:GMAIL_CUENTA_ESPERADA = "<cuenta institucional>"
+$env:GMAIL_REFRESH_TOKEN_ARCHIVO = "$env:USERPROFILE\Documents\piar-gmail-refresh-token.txt"   # fuera del repositorio
+node scripts/gmail-autorizar.js
+```
+- Abrir el enlace que imprime, entrar con la cuenta institucional y aceptar el permiso de enviar correos.
+- El script valida `state`, usa PKCE, exige que la cuenta sea la esperada y que el único permiso de Gmail sea `gmail.send`, y guarda el refresh token en el archivo indicado sin mostrarlo.
+- Si Google no entrega refresh token, retirar el acceso en https://myaccount.google.com/permissions y repetir.
+
+**C. Prueba local antes de Railway:**
+```powershell
+$env:EMAIL_TRANSPORT = "gmail"; $env:EMAIL_FROM = "<cuenta institucional>"; $env:EMAIL_FROM_NAME = "Sistema PIAR"
+$env:GMAIL_REFRESH_TOKEN = (Get-Content $env:GMAIL_REFRESH_TOKEN_ARCHIVO -Raw).Trim()
+npm run correo:probar -- --verificar                                          # «Autorización de Gmail correcta»
+$env:PIAR_CONFIRMAR_ENVIO = "SI"; npm run correo:probar -- --enviar <buzón controlado>   # 🔒 requiere autorización
+Remove-Item Env:GMAIL_CLIENT_SECRET, Env:GMAIL_REFRESH_TOKEN, Env:PIAR_CONFIRMAR_ENVIO
+```
+
+**D. Railway** 🔒 (los secretos entran por `--stdin`, nunca en la línea de comandos):
+```powershell
+railway variable set --service PIAR-SISTEMA --skip-deploys EMAIL_TRANSPORT=gmail EMAIL_FROM=<cuenta institucional> "EMAIL_FROM_NAME=Sistema PIAR"
+$env:GMAIL_CLIENT_ID | railway variable set GMAIL_CLIENT_ID --stdin --service PIAR-SISTEMA --skip-deploys
+[Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)) | railway variable set GMAIL_CLIENT_SECRET --stdin --service PIAR-SISTEMA --skip-deploys
+(Get-Content $env:GMAIL_REFRESH_TOKEN_ARCHIVO -Raw).Trim() | railway variable set GMAIL_REFRESH_TOKEN --stdin --service PIAR-SISTEMA
+```
+- El último comando, sin `--skip-deploys`, redespliega el servicio. El código con el transporte `gmail` debe estar ya en `main`; si no, el servidor se niega a arrancar con `EMAIL_TRANSPORT=gmail` y Railway conserva la versión anterior.
+- Después: `railway ssh` → `node scripts/probar-correo.js --verificar`, y una prueba funcional con una cuenta de prueba controlada (registro → correo → enlace → «Correo verificado»).
+- Guardar el archivo del refresh token en el gestor de contraseñas y borrarlo del disco.
+
+**Mantenimiento:** si aparece `invalid_grant` en los registros, el refresh token fue revocado o venció (cambio de contraseña de la cuenta, acceso retirado o aplicación en estado «Prueba»): repetir B y D. **Límite:** las cuentas de Gmail gratuitas admiten unos 500 destinatarios al día.
 
 ## 8. TRUSTED_PROXIES
 1. Desplegar con `PIAR_DIAGNOSTICO_PROXY=1`.

@@ -203,7 +203,7 @@ test("probar-correo: con Resend, --verificar comprueba el dominio y el envío in
         console.log = originalLog;
         console.warn = originalWarn;
     }
-    assert.ok(logs.some(line => /Identificador en Resend: abc-123/.test(line)));
+    assert.ok(logs.some(line => /Identificador del mensaje: abc-123/.test(line)));
     assert.doesNotMatch(logs.join("\n"), new RegExp(FAKE_KEY));
 });
 

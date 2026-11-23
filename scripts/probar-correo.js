@@ -1,16 +1,17 @@
 "use strict";
 
-// Prueba controlada del correo de producción (Resend, Gmail SMTP u otro transporte persistente).
+// Prueba controlada del correo de producción (Gmail API, Resend, SMTP u otro transporte persistente).
 //   node scripts/probar-correo.js --verificar
 //       SMTP: conecta y se autentica. Resend: comprueba que el dominio de EMAIL_FROM esté
-//       verificado (requiere una clave de acceso completo). No envía nada.
+//       verificado (requiere una clave de acceso completo). Gmail API: renueva el acceso con el
+//       refresh token y confirma el permiso gmail.send. No envía nada.
 //   node scripts/probar-correo.js --enviar <correo-destino>
 //       Envía UN mensaje de prueba. Exige PIAR_CONFIRMAR_ENVIO=SI.
 // Lee solo variables de entorno (EMAIL_*); nunca imprime la contraseña ni el contenido del
 // mensaje. No lee el .env local: las variables se definen en la sesión de la terminal.
 process.env.NODE_ENV = process.env.NODE_ENV || "production";
 
-const { assertPersistentEmailTransport, verifySmtpTransport, verifyResendSender, deliverEmail, describeSmtpDiagnostic, RESEND_API_ORIGIN } = require("../backend/email");
+const { assertPersistentEmailTransport, verifySmtpTransport, verifyResendSender, verifyGmailAuthorization, deliverEmail, describeSmtpDiagnostic, RESEND_API_ORIGIN } = require("../backend/email");
 
 const EMAIL = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 
@@ -37,6 +38,12 @@ function configurationSummary(env = process.env) {
         summary.nombreRemitente = String(env.EMAIL_FROM_NAME || "").trim() || "(sin nombre)";
         summary.clave = "configurada";
     }
+    if (mode === "gmail") {
+        // Nunca se muestran el secreto ni el refresh token: solo si están presentes.
+        summary.api = "Gmail API (HTTPS, OAuth 2.0, permiso gmail.send)";
+        summary.nombreRemitente = String(env.EMAIL_FROM_NAME || "").trim() || "(sin nombre)";
+        summary.credenciales = "configuradas";
+    }
     return summary;
 }
 
@@ -47,7 +54,7 @@ function testMessage(now = new Date()) {
     };
 }
 
-async function main(argv = process.argv.slice(2), env = process.env, deps = { verifySmtpTransport, verifyResendSender, deliverEmail }) {
+async function main(argv = process.argv.slice(2), env = process.env, deps = { verifySmtpTransport, verifyResendSender, verifyGmailAuthorization, deliverEmail }) {
     const args = parseArgs(argv);
     const summary = configurationSummary(env);
     console.log(`Configuración: ${JSON.stringify(summary)}`);
@@ -64,8 +71,13 @@ async function main(argv = process.argv.slice(2), env = process.env, deps = { ve
         console.log(`Dominio ${result.domain} verificado en Resend. No se envió ningún mensaje.`);
         return { verified: true, ...result };
     }
+    if (args.mode === "verificar" && summary.transporte === "gmail") {
+        const result = await deps.verifyGmailAuthorization(env);
+        console.log(`Autorización de Gmail correcta (permisos: ${result.scopes.join(", ")}). No se envió ningún mensaje.`);
+        return { verified: true, scopes: result.scopes };
+    }
     if (args.mode === "verificar") {
-        if (summary.transporte !== "smtp") throw new Error("--verificar solo aplica a EMAIL_TRANSPORT=smtp o resend.");
+        if (summary.transporte !== "smtp") throw new Error("--verificar solo aplica a EMAIL_TRANSPORT=smtp, resend o gmail.");
         await deps.verifySmtpTransport();
         console.log("Conexión y autenticación SMTP correctas. No se envió ningún mensaje.");
         return { verified: true };
@@ -73,7 +85,7 @@ async function main(argv = process.argv.slice(2), env = process.env, deps = { ve
     if (String(env.PIAR_CONFIRMAR_ENVIO || "") !== "SI") throw new Error("Para enviar, define PIAR_CONFIRMAR_ENVIO=SI.");
     const { subject, text } = testMessage();
     const delivery = await deps.deliverEmail(args.to, subject, text);
-    const id = typeof delivery?.id === "string" ? ` Identificador en Resend: ${delivery.id}.` : "";
+    const id = typeof delivery?.id === "string" ? ` Identificador del mensaje: ${delivery.id}.` : "";
     console.log(`El servicio de correo aceptó el mensaje.${id} Confirma la recepción en la bandeja de destino (revisa también spam).`);
     return { sent: true };
 }

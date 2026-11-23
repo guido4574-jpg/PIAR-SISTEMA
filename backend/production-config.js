@@ -62,7 +62,7 @@ function productionConfigReport(env = process.env) {
         // verificación, recuperación ni avisos. Las cuentas nuevas quedan pendientes de verificar.
         warnings.push("EMAIL_TRANSPORT=desactivado: no se envían correos; las cuentas nuevas no pueden verificar su correo ni recuperar la contraseña.");
     } else try { assertPersistentEmailTransport(env); } catch {
-        errors.push("El correo debe usar EMAIL_TRANSPORT=resend (RESEND_API_KEY, EMAIL_FROM), smtp (EMAIL_SMTP_*, EMAIL_FROM) o api con HTTPS; memory no está permitido.");
+        errors.push("El correo debe usar EMAIL_TRANSPORT=resend (RESEND_API_KEY, EMAIL_FROM), EMAIL_TRANSPORT=gmail (GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, EMAIL_FROM), smtp (EMAIL_SMTP_*, EMAIL_FROM) o api con HTTPS; memory no está permitido.");
     }
     if (String(env.EMAIL_TRANSPORT || "").trim().toLowerCase() === "resend" && /@resend\.dev$/i.test(String(env.EMAIL_FROM || "").trim())) {
         warnings.push("EMAIL_FROM usa el remitente de prueba de Resend: solo entrega al correo del dueño de la cuenta. Verifica un dominio propio.");

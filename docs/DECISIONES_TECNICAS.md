@@ -112,6 +112,18 @@ Recomendación adoptada para que el rol Estudiante sea operable; la institución
   - un campo opcional vaciado al editar un PIAR o un docente se guarda vacío;
   - CSP sin `'unsafe-inline'` en `script-src` (delegación de eventos en `public/js/event-actions.js`).
 
+### D10. Correo por la API de Gmail con la cuenta institucional (2026-11-23)
+- **Motivo:** Resend exige un dominio verificado y la institución no tiene uno; una dirección `@gmail.com` no puede verificarse en Resend. Gmail SMTP sigue bloqueado en el plan Trial de Railway. La API de Gmail funciona por HTTPS (puerto 443), que Railway no bloquea, y envía desde la cuenta institucional sin comprar un dominio.
+- **Cambio:** se añade `EMAIL_TRANSPORT=gmail` en `backend/email.js`. Usa `fetch` nativo, como Resend, sin la biblioteca `googleapis`: solo hacen falta dos llamadas (renovar el token y `users.messages.send`), y así no se añade una dependencia grande. El resto del sistema sigue usando `deliverEmail()`; Resend y SMTP se conservan.
+- **Permisos:** el único permiso de Gmail es `gmail.send` (enviar). La autorización inicial pide además `openid` y `email`, que solo sirven para comprobar que autorizó la cuenta institucional.
+- **Variables:** `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` (secretas), `EMAIL_FROM` (la cuenta autorizada), `EMAIL_FROM_NAME` y `EMAIL_TIMEOUT_MS` (opcionales).
+- **Seguridad:**
+  - el refresh token se obtiene una vez con `scripts/gmail-autorizar.js` en el equipo del administrador (state, PKCE S256, comprobación de la cuenta); la aplicación publicada no tiene ninguna ruta para conectar cuentas de Gmail;
+  - el access token vive solo en memoria y se renueva al vencer;
+  - en producción solo se aceptan los endpoints oficiales de Google;
+  - errores y registros sin secretos, tokens, destinatarios ni contenido.
+- **Condición para operar:** cliente OAuth creado y pantalla de consentimiento **publicada** (en estado «Prueba», Google invalida el refresh token a los 7 días). Ver `docs/DESPLIEGUE_RAILWAY.md` §7.3.
+
 ### D9. Correo por Resend durante la evaluación académica (2026-11-22)
 - **Motivo:** el proyecto de Railway está en plan Trial, que bloquea el SMTP saliente (465/587). Gmail SMTP queda como alternativa si se contrata el plan Pro.
 - **Cambio:** se añade `EMAIL_TRANSPORT=resend` en `backend/email.js`, que envía por la API HTTPS de Resend. El resto del sistema sigue usando `deliverEmail()` y el proveedor se cambia por configuración.

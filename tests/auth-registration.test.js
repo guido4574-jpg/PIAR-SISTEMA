@@ -54,7 +54,8 @@ test("public Docente registration hashes the exact password and starts pending v
     }
     assert.equal(result.status, 202);
     assert.equal(result.body.pendingVerification, true);
-    assert.match(result.body.message, /revisa tu bandeja/);
+    assert.match(result.body.message, /Revisa tu bandeja de entrada y la carpeta de spam/);
+    assert.match(result.body.message, /Reenviar verificación de correo/);
     const insert = db.statements.find(statement => statement.sql?.startsWith("INSERT INTO usuario"));
     assert.equal(insert.values[2], "ana.prueba@example.invalid");
     assert.equal(insert.values[3], "Docente");

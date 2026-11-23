@@ -1,5 +1,6 @@
 "use strict";
 
+const crypto = require("node:crypto");
 const nodemailer = require("nodemailer");
 
 const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
@@ -46,7 +47,12 @@ function assertPersistentEmailTransport(env = process.env) {
         resendSender(env);
         return mode;
     }
-    throw new Error("Configura un transporte SMTP, Resend o API persistente.");
+    if (mode === "gmail") {
+        gmailSettings(env);
+        gmailSender(env);
+        return mode;
+    }
+    throw new Error("Configura un transporte SMTP, Resend, Gmail API o API persistente.");
 }
 
 async function deliverEmail(to, subject, text) {
@@ -58,6 +64,7 @@ async function deliverEmail(to, subject, text) {
     if (mode === "memory") return sendMemory(to, subject, text);
     if (mode === "smtp") return sendSmtp(to, subject, text);
     if (mode === "resend") return sendResend(to, subject, text);
+    if (mode === "gmail") return sendGmail(to, subject, text);
     if (mode === "api") return sendApi(to, subject, text);
     throw new Error("Email transport is not configured.");
 }
@@ -192,6 +199,180 @@ function resendDiagnosticHint(diagnostic) {
     return "Error de Resend no clasificado.";
 }
 
+// Gmail API por HTTPS (OAuth 2.0, único alcance de Gmail: gmail.send). Envía desde la cuenta institucional
+// que autorizó la aplicación con scripts/gmail-autorizar.js, sin SMTP (bloqueado en Railway Trial y Hobby)
+// y sin contraseñas de Gmail. Se usa fetch nativo, como en Resend, para no añadir dependencias.
+// El identificador de cliente, el secreto y el refresh token llegan por variables de entorno y nunca se
+// registran ni viajan en los errores; el access token vive solo en memoria y se renueva al vencer.
+const GMAIL_API_ORIGIN = "https://gmail.googleapis.com";
+const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
+const GMAIL_SEND_PATH = "/gmail/v1/users/me/messages/send";
+const GOOGLE_CLIENT_ID = /^[0-9]{6,30}-[a-z0-9]{8,64}\.apps\.googleusercontent\.com$/;
+const OPAQUE_SECRET = /^[\x21-\x7e]{10,2048}$/;
+const GOOGLE_ERROR_CODE = /^[a-z][a-z_]{1,63}$/;
+const GOOGLE_STATUS = /^[A-Z][A-Z_]{1,63}$/;
+let gmailAccessToken = null;
+
+function officialOrLocalTestUrl(value, official, env, label) {
+    let url;
+    try { url = new URL(String(value || official).trim()); } catch { throw new Error(`Gmail API no está configurada: ${label} no válida.`); }
+    const localTest = env.NODE_ENV === "test" && ["127.0.0.1", "localhost", "::1", "[::1]"].includes(url.hostname);
+    if (url.username || url.password || (url.protocol !== "https:" && !localTest) || (env.NODE_ENV === "production" && url.href !== new URL(official).href)) {
+        throw new Error(`Gmail API no está configurada: ${label} debe ser la oficial por HTTPS.`);
+    }
+    return url;
+}
+
+function gmailSettings(env = process.env) {
+    const clientId = String(env.GMAIL_CLIENT_ID || "").trim();
+    const clientSecret = String(env.GMAIL_CLIENT_SECRET || "").trim();
+    const refreshToken = String(env.GMAIL_REFRESH_TOKEN || "").trim();
+    if (!GOOGLE_CLIENT_ID.test(clientId) || !OPAQUE_SECRET.test(clientSecret) || !OPAQUE_SECRET.test(refreshToken)) {
+        throw new Error("Gmail API no está configurada: faltan GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET o GMAIL_REFRESH_TOKEN, o su formato no es válido.");
+    }
+    // GMAIL_API_BASE_URL y GOOGLE_OAUTH_TOKEN_URL solo existen para pruebas locales.
+    const apiOrigin = officialOrLocalTestUrl(env.GMAIL_API_BASE_URL, GMAIL_API_ORIGIN, env, "la URL de la API").origin;
+    const tokenUrl = officialOrLocalTestUrl(env.GOOGLE_OAUTH_TOKEN_URL, GOOGLE_TOKEN_URL, env, "la URL de tokens").href;
+    const cacheKey = crypto.createHash("sha256").update(`${clientId}\n${refreshToken}`).digest("hex");
+    return { clientId, clientSecret, refreshToken, apiOrigin, tokenUrl, cacheKey, timeoutMs: emailTimeoutMs(env) };
+}
+
+// Con Gmail el remitente debe ser la cuenta que autorizó la aplicación (o un alias verificado en ella).
+function gmailSender(env = process.env) {
+    const from = String(env.EMAIL_FROM || "").trim();
+    if (!EMAIL_RE.test(from) || /[\r\n]/.test(from)) throw new Error("Email sender is not configured.");
+    const name = String(env.EMAIL_FROM_NAME || "").trim();
+    if (!name) return from;
+    if (name.length > 80 || SENDER_NAME_FORBIDDEN.test(name)) throw new Error("EMAIL_FROM_NAME no es válido.");
+    return `${encodeMimeHeader(name, true)} <${from}>`;
+}
+
+function encodeMimeHeader(value, quoteAscii = false) {
+    if (/^[\x20-\x7e]*$/.test(value)) return quoteAscii ? `"${value}"` : value;
+    return `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`;
+}
+
+// Mensaje RFC 5322 de texto plano en UTF-8; el cuerpo va en base64 para conservar tildes y eñes.
+function buildMimeMessage(from, to, subject, text) {
+    const body = Buffer.from(text, "utf8").toString("base64").replace(/.{1,76}/g, line => `${line}\r\n`);
+    return [
+        `From: ${from}`,
+        `To: <${to}>`,
+        `Subject: ${encodeMimeHeader(subject)}`,
+        "MIME-Version: 1.0",
+        "Content-Type: text/plain; charset=\"UTF-8\"",
+        "Content-Transfer-Encoding: base64",
+        "",
+        body
+    ].join("\r\n");
+}
+
+async function gmailFetch(url, init, stage, timeoutMs) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...init, signal: controller.signal, redirect: "error" });
+    } catch {
+        const timedOut = controller.signal.aborted;
+        throw new EmailTransportError(timedOut ? "Google no respondió a tiempo." : "No se pudo conectar con Google.",
+            Object.freeze({ provider: "gmail", stage, code: timedOut ? "ETIMEDOUT" : "ECONNECTION", responseCode: null, name: null, retryAfterSeconds: null }));
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+// Solo códigos con formato fijo (invalid_grant, PERMISSION_DENIED…) y el estado HTTP; nunca mensajes.
+async function gmailErrorDiagnostic(response, stage) {
+    let name = null;
+    try {
+        const body = await response.json();
+        if (typeof body?.error === "string" && GOOGLE_ERROR_CODE.test(body.error)) name = body.error;
+        else if (typeof body?.error?.status === "string" && GOOGLE_STATUS.test(body.error.status)) name = body.error.status;
+    } catch { /* cuerpo no JSON */ }
+    const retryAfter = Number(response.headers.get("retry-after"));
+    return Object.freeze({ provider: "gmail", stage, code: null, responseCode: response.status, name, retryAfterSeconds: Number.isFinite(retryAfter) && retryAfter >= 0 ? retryAfter : null });
+}
+
+async function refreshGmailAccessToken(settings) {
+    const response = await gmailFetch(settings.tokenUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+        body: new URLSearchParams({ client_id: settings.clientId, client_secret: settings.clientSecret, refresh_token: settings.refreshToken, grant_type: "refresh_token" }).toString()
+    }, "autorización", settings.timeoutMs);
+    if (!response.ok) {
+        const diagnostic = await gmailErrorDiagnostic(response, "autorización");
+        console.error(`Google rechazó la renovación del acceso a Gmail: HTTP ${diagnostic.responseCode}${diagnostic.name ? ` (${diagnostic.name})` : ""}.`);
+        throw new EmailTransportError("Google rechazó la autorización para enviar correo.", diagnostic);
+    }
+    let body = null;
+    try { body = await response.json(); } catch { /* se valida abajo */ }
+    const expiresIn = Number(body?.expires_in);
+    if (typeof body?.access_token !== "string" || !body.access_token || !Number.isFinite(expiresIn) || expiresIn <= 0) {
+        throw new EmailTransportError("Google respondió sin un token de acceso válido.", Object.freeze({ provider: "gmail", stage: "autorización", code: "EINVALIDRESPONSE", responseCode: response.status, name: null, retryAfterSeconds: null }));
+    }
+    const scopes = typeof body.scope === "string" ? body.scope.split(/\s+/) : [GMAIL_SEND_SCOPE];
+    if (!scopes.includes(GMAIL_SEND_SCOPE)) {
+        throw new EmailTransportError("La autorización de Google no incluye el permiso gmail.send.", Object.freeze({ provider: "gmail", stage: "autorización", code: null, responseCode: response.status, name: "insufficient_scope", retryAfterSeconds: null }));
+    }
+    // Se renueva un minuto antes de vencer.
+    gmailAccessToken = { key: settings.cacheKey, value: body.access_token, expiresAt: Date.now() + Math.max(0, expiresIn - 60) * 1000 };
+    return { accessToken: body.access_token, expiresIn, scopes };
+}
+
+async function gmailAccessTokenFor(settings, forceRefresh = false) {
+    if (!forceRefresh && gmailAccessToken && gmailAccessToken.key === settings.cacheKey && gmailAccessToken.expiresAt > Date.now()) return gmailAccessToken.value;
+    gmailAccessToken = null;
+    return (await refreshGmailAccessToken(settings)).accessToken;
+}
+
+async function sendGmail(to, subject, text, env = process.env) {
+    const settings = gmailSettings(env);
+    const raw = Buffer.from(buildMimeMessage(gmailSender(env), to, subject, text), "utf8").toString("base64url");
+    const send = async accessToken => gmailFetch(`${settings.apiOrigin}${GMAIL_SEND_PATH}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ raw })
+    }, "envío", settings.timeoutMs);
+    let response = await send(await gmailAccessTokenFor(settings));
+    // Un access token revocado o vencido antes de tiempo se renueva una sola vez.
+    if (response.status === 401) response = await send(await gmailAccessTokenFor(settings, true));
+    if (!response.ok) {
+        const diagnostic = await gmailErrorDiagnostic(response, "envío");
+        console.error(`Gmail rechazó el envío: HTTP ${diagnostic.responseCode}${diagnostic.name ? ` (${diagnostic.name})` : ""}.`);
+        throw new EmailTransportError("Gmail rechazó el envío del correo.", diagnostic);
+    }
+    let body = null;
+    try { body = await response.json(); } catch { /* se valida abajo */ }
+    if (typeof body?.id !== "string" || !body.id) {
+        throw new EmailTransportError("Gmail respondió sin identificador de mensaje.", Object.freeze({ provider: "gmail", stage: "envío", code: "EINVALIDRESPONSE", responseCode: response.status, name: null, retryAfterSeconds: null }));
+    }
+    return { id: body.id };
+}
+
+// Comprobación sin envío: renueva el access token y confirma que la autorización incluye gmail.send.
+async function verifyGmailAuthorization(env = process.env) {
+    const settings = gmailSettings(env);
+    gmailSender(env);
+    const { expiresIn, scopes } = await refreshGmailAccessToken(settings);
+    return { authorized: true, expiresIn, scopes: scopes.filter(scope => /^(https:\/\/www\.googleapis\.com\/auth\/[a-z.]+|openid|email)$/.test(scope)) };
+}
+
+function gmailDiagnosticHint(diagnostic) {
+    const { code, responseCode, name } = diagnostic || {};
+    if (code === "ETIMEDOUT") return "Google no respondió dentro de EMAIL_TIMEOUT_MS; revisa la red o vuelve a intentarlo.";
+    if (code === "ECONNECTION") return "No hubo conexión HTTPS con Google; revisa la salida a internet.";
+    if (name === "invalid_grant") return "El refresh token fue revocado o venció (en estado «Prueba» de la pantalla de consentimiento vence a los 7 días; también al cambiar la contraseña de la cuenta). Ejecuta de nuevo scripts/gmail-autorizar.js y actualiza GMAIL_REFRESH_TOKEN.";
+    if (name === "invalid_client" || name === "unauthorized_client") return "Google rechazó el cliente OAuth: revisa GMAIL_CLIENT_ID y GMAIL_CLIENT_SECRET (deben ser del mismo cliente que generó el refresh token).";
+    if (name === "insufficient_scope" || name === "ACCESS_TOKEN_SCOPE_INSUFFICIENT") return "La autorización no incluye gmail.send: repite la autorización aceptando ese permiso.";
+    if (responseCode === 403) return "Gmail denegó el envío: confirma que la API de Gmail está habilitada en el proyecto de Google Cloud y que EMAIL_FROM es la cuenta autorizada.";
+    if (responseCode === 429) return "Se superó el límite de envío de Gmail; vuelve a intentarlo más tarde.";
+    if (responseCode === 400) return "Gmail rechazó el mensaje (remitente o destinatario no válido).";
+    if (responseCode >= 500) return "Error temporal de Google; vuelve a intentarlo más tarde.";
+    if (code === "EINVALIDRESPONSE") return "La respuesta de Google no tuvo el formato esperado.";
+    return "Error de Gmail API no clasificado.";
+}
+
 function sendMemory(to, subject, text) {
     const secret = String(process.env.EMAIL_DEV_OUTBOX_SECRET || "");
     if (process.env.NODE_ENV === "production" || process.env.NODE_ENV === "test" || secret.length < 32 || /^replace[_-]/i.test(secret)) {
@@ -317,6 +498,11 @@ function smtpDiagnosticHint(diagnostic) {
 // Texto en español para mostrar en consola; solo usa los campos depurados.
 function describeSmtpDiagnostic(diagnostic) {
     if (!diagnostic) return "Sin diagnóstico SMTP disponible.";
+    if (diagnostic.provider === "gmail") {
+        const parts = [`etapa: ${diagnostic.stage}`, `código: ${diagnostic.code || "-"}`, `HTTP: ${diagnostic.responseCode || "-"}`, `error de Google: ${diagnostic.name || "-"}`];
+        if (diagnostic.retryAfterSeconds !== null && diagnostic.retryAfterSeconds !== undefined) parts.push(`reintentar en: ${diagnostic.retryAfterSeconds} s`);
+        return `${parts.join(" | ")}. ${gmailDiagnosticHint(diagnostic)}`;
+    }
     if (diagnostic.provider === "resend") {
         const parts = [`etapa: ${diagnostic.stage}`, `código: ${diagnostic.code || "-"}`, `HTTP: ${diagnostic.responseCode || "-"}`, `error de Resend: ${diagnostic.name || "-"}`];
         if (diagnostic.retryAfterSeconds !== null && diagnostic.retryAfterSeconds !== undefined) parts.push(`reintentar en: ${diagnostic.retryAfterSeconds} s`);
@@ -372,5 +558,8 @@ async function verifySmtpTransport() {
 module.exports = {
     deliverEmail, validateMessage, sendSmtp, verifySmtpTransport, takeDevelopmentOutbox, assertPersistentEmailTransport,
     EmailTransportError, smtpDiagnostic, describeSmtpDiagnostic,
-    sendResend, verifyResendSender, resendSettings, resendSender, RESEND_API_ORIGIN, RESEND_USER_AGENT
+    sendResend, verifyResendSender, resendSettings, resendSender, RESEND_API_ORIGIN, RESEND_USER_AGENT,
+    sendGmail, verifyGmailAuthorization, gmailSettings, gmailSender, buildMimeMessage, gmailDiagnosticHint,
+    GMAIL_API_ORIGIN, GOOGLE_TOKEN_URL, GMAIL_SEND_SCOPE,
+    resetGmailAccessTokenCache: () => { gmailAccessToken = null; }
 };

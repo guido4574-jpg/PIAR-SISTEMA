@@ -35,6 +35,8 @@ async function apiRequest(name, method, body) {
     if (!response.ok) {
         const error = new Error(payload.message || "No se pudo completar la solicitud");
         error.status = response.status;
+        // Motivo controlado por el servidor (por ejemplo, "vencido" o "usado" en la verificación del correo).
+        if (typeof payload.reason === "string" && /^[a-z_]{1,32}$/.test(payload.reason)) error.reason = payload.reason;
         if (response.status === 401 && !["authLogin", "authRegister", "authMe", "authLogout", "authPasswordResetRequest", "authPasswordResetConfirm", "authEmailVerificationConfirm", "authEmailVerificationRequest", "authEmailChangeConfirm"].includes(name)) {
             window.handleSessionExpired?.();
         }
