@@ -1,0 +1,16 @@
+flowchart TD
+  A["Estudiante registrado por Administrador, Rector o Coordinador"] --> B["Crear PIAR: título, periodo, año y docente responsable"]
+  B --> C["Asignar docentes: piar_docente"]
+  C --> D["Registrar barreras por contexto"]
+  D --> E["Registrar ajustes razonables vinculados a la barrera"]
+  E --> F["Registrar evidencias del ajuste"]
+  E --> G["Registrar estrategias DUA por principio"]
+  F --> H["Seguimientos y observaciones: inmutables"]
+  G --> H
+  H --> I["Editar PIAR con justificación → nueva versión"]
+  I --> J{"¿Cierre del periodo?"}
+  J -->|"No"| H
+  J -->|"Sí: Administrador, Rector o Coordinador"| K["PIAR cerrado: solo lectura, 409 a escrituras"]
+  K --> L{"¿Reapertura?"}
+  L -->|"Solo Coordinador, con justificación"| I
+  K --> M["Generar informe: instantánea persistente e impresión"]

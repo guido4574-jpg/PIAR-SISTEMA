@@ -1,0 +1,10 @@
+flowchart TB
+  U["Navegador"] -->|"HTTPS"| EDGE["Borde de Railway<br/>TLS · HSTS"]
+  GH["GitHub · rama main"] -->|"despliegue automático"| APP
+  subgraph RW["Railway · entorno production"]
+    APP["Servicio PIAR-SISTEMA<br/>Docker node:22-alpine<br/>usuario node · 0.0.0.0:8080"]
+    MY[("Servicio MySQL 8.4<br/>volumen persistente<br/>piar_produccion")]
+    APP -->|"red privada · TLS<br/>cuenta piar_app solo DML"| MY
+  end
+  EDGE -->|"red interna"| APP
+  OP["Operador autorizado"] -.->|"railway ssh · respaldos"| MY

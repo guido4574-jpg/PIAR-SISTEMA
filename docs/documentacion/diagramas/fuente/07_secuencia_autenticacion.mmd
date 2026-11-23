@@ -1,0 +1,27 @@
+sequenceDiagram
+  autonumber
+  actor U as Usuario
+  participant F as app.js
+  participant EV as event-actions
+  participant API as api.js
+  participant S as server.js
+  participant A as auth.js
+  participant BD as MySQL
+  U->>F: correo, contraseña y envío
+  F->>EV: submit delegado
+  EV->>F: login(evento)<br/>currentTarget = formulario
+  F->>F: «Ingresando…»
+  F->>API: apiLogin()
+  API->>S: POST /api/auth/login
+  S->>S: origen y límites
+  S->>A: login()
+  A->>BD: SELECT usuario
+  A->>A: bcrypt.compare
+  alt válida y activa
+    A->>BD: INSERT sesión (hash)
+    S-->>API: 200 + cookie segura
+    F->>U: panel del rol
+  else inválida o inactiva
+    S-->>API: 401 genérico
+    F->>U: mensaje y botón restablecido
+  end

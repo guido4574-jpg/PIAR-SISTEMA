@@ -1,0 +1,43 @@
+erDiagram
+  direction LR
+  usuario {
+    int id_usuario PK
+    enum rol
+    varchar estado
+    int aprobado_por_usuario_id FK
+    int rechazado_por_usuario_id FK
+  }
+  sesion_usuario {
+    int id_sesion PK
+    int id_usuario FK
+  }
+  verificacion_correo {
+    bigint id_verificacion PK
+    int id_usuario FK
+  }
+  recuperacion_contrasena {
+    bigint id_recuperacion PK
+    int id_usuario FK
+  }
+  cambio_correo {
+    bigint id_cambio PK
+    int id_usuario FK
+    int solicitado_por FK
+  }
+  external_identity {
+    bigint id_external_identity PK
+    int id_usuario FK
+  }
+  oidc_login_transaction {
+    char state_hash PK
+    int link_user_id FK
+  }
+  usuario ||--o{ cambio_correo : "id_usuario"
+  usuario ||--o{ cambio_correo : "solicitado_por"
+  usuario ||--o{ external_identity : "id_usuario"
+  usuario |o--o{ oidc_login_transaction : "link_user_id"
+  usuario ||--o{ recuperacion_contrasena : "id_usuario"
+  usuario ||--o{ sesion_usuario : "id_usuario"
+  usuario |o--o{ usuario : "aprobado_por_usuario_id"
+  usuario |o--o{ usuario : "rechazado_por_usuario_id"
+  usuario ||--o{ verificacion_correo : "id_usuario"

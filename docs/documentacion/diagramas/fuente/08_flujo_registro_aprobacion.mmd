@@ -1,0 +1,13 @@
+flowchart TD
+  A["Solicitud pública o cuenta creada por el Administrador"] --> B["usuario.estado = pendiente_verificacion"]
+  B --> C{"¿Hay transporte de correo activo?"}
+  C -->|"No: producción actual, correo desactivado"| X["El enlace no se entrega y se invalida.<br/>La cuenta queda pendiente."]
+  C -->|"Sí"| D["Enlace de un solo uso, 24 h"]
+  D --> E{"¿Perfil?"}
+  E -->|"Docente · Psicólogo(a) · Coordinador · Rector"| F["estado = pendiente → Solicitudes"]
+  E -->|"Estudiante creada por el Administrador"| G["estado = activo"]
+  F --> H{"Decisión del Administrador"}
+  H -->|"Aprobar"| I["estado = activo · auditoría · aviso por correo"]
+  H -->|"Rechazar con motivo"| J["estado = rechazado · auditoría · aviso sin el motivo"]
+  I --> K["Primer acceso: cambio obligatorio si la contraseña es temporal"]
+  G --> K

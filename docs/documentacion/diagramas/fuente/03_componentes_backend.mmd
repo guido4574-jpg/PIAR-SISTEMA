@@ -1,0 +1,32 @@
+flowchart TB
+  SRV["server.js · enrutamiento HTTP"]
+  subgraph Config["Configuración"]
+    CFG["config.js<br/>production-config.js"]
+    DBC["database-config.js<br/>db.js"]
+  end
+  subgraph Cuentas["Cuentas y acceso"]
+    AUTH["auth.js<br/>password-policy.js"]
+    RA["registration-approval.js<br/>decision-notification.js"]
+    AAO["account-email.js<br/>admin-account-operations.js"]
+    OIDC["oidc.js · oculto"]
+  end
+  subgraph Pedagogico["Dominio pedagógico"]
+    PV["piar-versioning.js<br/>partial-update.js"]
+    PVAL["pedagogical-validation.js<br/>teacher-validation.js"]
+    PACC["pedagogical-access.js<br/>student-access.js"]
+    SP["student-portal.js<br/>student-update.js<br/>reports.js"]
+  end
+  subgraph Seguridad["Seguridad y operación"]
+    AZ["authorization.js<br/>security-controls.js<br/>client-ip.js"]
+    RL["rate-limit-store.js<br/>login-throttle.js"]
+    SE["security-events.js<br/>admin-account-audit.js<br/>maintenance.js"]
+    EM["email.js<br/>resend · smtp · api<br/>desactivado"]
+  end
+  SRV --> CFG
+  SRV --> AUTH
+  SRV --> PV
+  SRV --> AZ
+  CFG ~~~ DBC
+  AUTH ~~~ RA ~~~ AAO ~~~ OIDC
+  PV ~~~ PVAL ~~~ PACC ~~~ SP
+  AZ ~~~ RL ~~~ SE ~~~ EM

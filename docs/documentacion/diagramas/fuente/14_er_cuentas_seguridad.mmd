@@ -1,0 +1,84 @@
+erDiagram
+  direction LR
+  usuario {
+    int id_usuario PK
+    enum rol
+    varchar estado
+    int aprobado_por_usuario_id FK
+    int rechazado_por_usuario_id FK
+  }
+  sesion_usuario {
+    int id_sesion PK
+    int id_usuario FK
+  }
+  verificacion_correo {
+    bigint id_verificacion PK
+    int id_usuario FK
+  }
+  recuperacion_contrasena {
+    bigint id_recuperacion PK
+    int id_usuario FK
+  }
+  cambio_correo {
+    bigint id_cambio PK
+    int id_usuario FK
+    int solicitado_por FK
+  }
+  external_identity {
+    bigint id_external_identity PK
+    int id_usuario FK
+  }
+  oidc_login_transaction {
+    char state_hash PK
+    int link_user_id FK
+  }
+  admin_account_audit {
+    bigint id_evento PK
+    int target_user_id FK
+    varchar operation
+  }
+  evento_seguridad {
+    bigint id_evento PK
+    varchar tipo
+    varchar resultado
+    int id_usuario
+  }
+  piar_auditoria {
+    bigint id_evento PK
+    int actor_user_id
+    varchar action
+    smallint http_status
+  }
+  limite_solicitudes {
+    char clave PK
+    int conteo
+    datetime expira_at
+  }
+  schema_migrations {
+    char version PK
+    char checksum
+  }
+  estudiante {
+    int id_estudiante PK
+    int id_usuario FK
+    varchar nombre
+    varchar estado
+  }
+  docente {
+    int id_docente PK
+    varchar nombre
+    varchar area
+    int id_usuario FK
+  }
+  usuario |o--o{ admin_account_audit : "target_user_id"
+  usuario ||--o{ cambio_correo : "id_usuario"
+  usuario ||--o{ cambio_correo : "solicitado_por"
+  usuario |o--o{ docente : "id_usuario"
+  usuario |o--o{ estudiante : "id_usuario"
+  usuario ||--o{ external_identity : "id_usuario"
+  usuario |o--o{ oidc_login_transaction : "link_user_id"
+  usuario ||--o{ recuperacion_contrasena : "id_usuario"
+  usuario ||--o{ sesion_usuario : "id_usuario"
+  usuario |o--o{ usuario : "aprobado_por_usuario_id"
+  usuario |o--o{ usuario : "rechazado_por_usuario_id"
+  usuario ||--o{ verificacion_correo : "id_usuario"

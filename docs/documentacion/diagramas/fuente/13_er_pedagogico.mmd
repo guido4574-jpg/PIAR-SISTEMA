@@ -1,0 +1,132 @@
+erDiagram
+  direction LR
+  estudiante {
+    int id_estudiante PK
+    int id_usuario FK
+    varchar nombre
+    varchar estado
+  }
+  docente {
+    int id_docente PK
+    varchar nombre
+    varchar area
+    int id_usuario FK
+  }
+  piar {
+    int id_piar PK
+    int id_estudiante FK
+    int id_usuario_creador FK
+    varchar titulo
+    varchar periodo
+    int anio
+    varchar estado
+  }
+  piar_docente {
+    int id_piar PK
+    int id_docente PK
+  }
+  piar_barrera {
+    int id_barrera PK
+    int id_piar FK
+    varchar contexto
+    date fecha_identificacion
+    int id_usuario_registro FK
+  }
+  piar_ajuste {
+    int id_ajuste PK
+    int id_piar FK
+    varchar area
+    decimal avance
+    varchar estado
+    int id_barrera FK
+    int id_usuario_responsable FK
+  }
+  piar_ajuste_evidencia {
+    int id_evidencia PK
+    int id_ajuste FK
+    int id_usuario_autor FK
+  }
+  piar_dua {
+    int id_dua PK
+    int id_piar FK
+    enum principio
+    int id_usuario_registro FK
+  }
+  diagnostico {
+    int id_diagnostico PK
+    varchar tipo_diagnostico
+    date fecha
+    int id_estudiante FK
+    int id_psicologa FK
+    int id_piar FK
+    int id_usuario_creador FK
+  }
+  psicologa {
+    int id_psicologa PK
+    varchar nombre
+  }
+  observacion {
+    int id_observacion PK
+    date fecha
+    int id_estudiante FK
+    int id_docente FK
+    int id_piar FK
+    int id_usuario_autor FK
+    varchar tipo
+  }
+  seguimiento {
+    int id_seguimiento PK
+    date fecha
+    int id_estudiante FK
+    int id_coordinador FK
+    int id_piar FK
+    int id_usuario_responsable FK
+    varchar estado
+    int id_ajuste FK
+  }
+  coordinador {
+    int id_coordinador PK
+    varchar nombre
+  }
+  historial {
+    int id_historial PK
+    int id_piar FK
+    int id_usuario_creador FK
+  }
+  historial_detalle {
+    int id_detalle PK
+    int id_historial FK
+    int id_usuario FK
+  }
+  reporte {
+    int id_reporte PK
+    int id_piar FK
+    int id_estudiante FK
+    int id_usuario FK
+    varchar tipo
+    varchar periodo
+  }
+  estudiante |o--o{ diagnostico : "id_estudiante"
+  piar |o--o{ diagnostico : "id_piar"
+  psicologa |o--o{ diagnostico : "id_psicologa"
+  piar |o--o{ historial : "id_piar"
+  historial ||--o{ historial_detalle : "id_historial"
+  docente |o--o{ observacion : "id_docente"
+  estudiante |o--o{ observacion : "id_estudiante"
+  piar |o--o{ observacion : "id_piar"
+  estudiante ||--o{ piar : "id_estudiante"
+  piar_barrera |o--o{ piar_ajuste : "id_barrera"
+  piar_barrera ||--o{ piar_ajuste : "id_piar"
+  piar ||--o{ piar_ajuste : "id_piar"
+  piar_ajuste ||--o{ piar_ajuste_evidencia : "id_ajuste"
+  piar ||--o{ piar_barrera : "id_piar"
+  docente ||--o{ piar_docente : "id_docente"
+  piar ||--o{ piar_docente : "id_piar"
+  piar ||--o{ piar_dua : "id_piar"
+  estudiante |o--o{ reporte : "id_estudiante"
+  piar |o--o{ reporte : "id_piar"
+  piar_ajuste |o--o{ seguimiento : "id_ajuste"
+  coordinador |o--o{ seguimiento : "id_coordinador"
+  estudiante |o--o{ seguimiento : "id_estudiante"
+  piar_ajuste |o--o{ seguimiento : "id_piar"
+  piar |o--o{ seguimiento : "id_piar"

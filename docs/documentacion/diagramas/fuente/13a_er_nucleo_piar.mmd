@@ -1,0 +1,63 @@
+erDiagram
+  direction TB
+  estudiante {
+    int id_estudiante PK
+    int id_usuario FK
+    varchar nombre
+    varchar estado
+  }
+  piar {
+    int id_piar PK
+    int id_estudiante FK
+    int id_usuario_creador FK
+    varchar titulo
+    varchar periodo
+    int anio
+    varchar estado
+  }
+  piar_docente {
+    int id_piar PK
+    int id_docente PK
+  }
+  docente {
+    int id_docente PK
+    varchar nombre
+    varchar area
+    int id_usuario FK
+  }
+  piar_barrera {
+    int id_barrera PK
+    int id_piar FK
+    varchar contexto
+    date fecha_identificacion
+    int id_usuario_registro FK
+  }
+  piar_ajuste {
+    int id_ajuste PK
+    int id_piar FK
+    varchar area
+    decimal avance
+    varchar estado
+    int id_barrera FK
+    int id_usuario_responsable FK
+  }
+  piar_ajuste_evidencia {
+    int id_evidencia PK
+    int id_ajuste FK
+    int id_usuario_autor FK
+  }
+  piar_dua {
+    int id_dua PK
+    int id_piar FK
+    enum principio
+    int id_usuario_registro FK
+  }
+  estudiante ||--o{ piar : "id_estudiante"
+  piar_barrera |o--o{ piar_ajuste : "id_barrera"
+  piar_barrera ||--o{ piar_ajuste : "id_piar"
+  piar ||--o{ piar_ajuste : "id_piar"
+  piar_ajuste ||--o{ piar_ajuste_evidencia : "id_ajuste"
+  piar ||--o{ piar_barrera : "id_piar"
+  docente ||--o{ piar_docente : "id_docente"
+  piar ||--o{ piar_docente : "id_piar"
+  piar ||--o{ piar_dua : "id_piar"

@@ -1,0 +1,30 @@
+erDiagram
+  direction TB
+  historial {
+    int id_historial PK
+    int id_piar FK
+    int id_usuario_creador FK
+  }
+  historial_detalle {
+    int id_detalle PK
+    int id_historial FK
+    int id_usuario FK
+  }
+  reporte {
+    int id_reporte PK
+    int id_piar FK
+    int id_estudiante FK
+    int id_usuario FK
+    varchar tipo
+    varchar periodo
+  }
+  piar {
+    int id_piar PK
+  }
+  estudiante {
+    int id_estudiante PK
+  }
+  piar |o--o{ historial : "id_piar"
+  historial ||--o{ historial_detalle : "id_historial"
+  estudiante |o--o{ reporte : "id_estudiante"
+  piar |o--o{ reporte : "id_piar"

@@ -1,0 +1,61 @@
+erDiagram
+  direction LR
+  diagnostico {
+    int id_diagnostico PK
+    varchar tipo_diagnostico
+    date fecha
+    int id_estudiante FK
+    int id_psicologa FK
+    int id_piar FK
+    int id_usuario_creador FK
+  }
+  psicologa {
+    int id_psicologa PK
+    varchar nombre
+  }
+  observacion {
+    int id_observacion PK
+    date fecha
+    int id_estudiante FK
+    int id_docente FK
+    int id_piar FK
+    int id_usuario_autor FK
+    varchar tipo
+  }
+  seguimiento {
+    int id_seguimiento PK
+    date fecha
+    int id_estudiante FK
+    int id_coordinador FK
+    int id_piar FK
+    int id_usuario_responsable FK
+    varchar estado
+    int id_ajuste FK
+  }
+  coordinador {
+    int id_coordinador PK
+    varchar nombre
+  }
+  estudiante {
+    int id_estudiante PK
+  }
+  piar {
+    int id_piar PK
+  }
+  docente {
+    int id_docente PK
+  }
+  piar_ajuste {
+    int id_ajuste PK
+  }
+  estudiante |o--o{ diagnostico : "id_estudiante"
+  piar |o--o{ diagnostico : "id_piar"
+  psicologa |o--o{ diagnostico : "id_psicologa"
+  docente |o--o{ observacion : "id_docente"
+  estudiante |o--o{ observacion : "id_estudiante"
+  piar |o--o{ observacion : "id_piar"
+  piar_ajuste |o--o{ seguimiento : "id_ajuste"
+  coordinador |o--o{ seguimiento : "id_coordinador"
+  estudiante |o--o{ seguimiento : "id_estudiante"
+  piar_ajuste |o--o{ seguimiento : "id_piar"
+  piar |o--o{ seguimiento : "id_piar"

@@ -1,0 +1,44 @@
+flowchart LR
+  A(["Administrador · Rector"])
+  C(["Coordinador"])
+  P(["Psicólogo(a)"])
+  D(["Docente asignado"])
+  E(["Estudiante"])
+  subgraph S["Sistema PIAR · gestión pedagógica"]
+    P1["Crear y editar PIAR con justificación"]
+    P2["Registrar barreras"]
+    P3["Registrar ajustes razonables y evidencias"]
+    P4["Registrar estrategias DUA"]
+    P5["Registrar diagnósticos"]
+    P6["Registrar observaciones"]
+    P7["Registrar seguimientos"]
+    P8["Cerrar PIAR"]
+    P9["Reabrir PIAR"]
+    P10["Consultar versiones e historial"]
+    P11["Generar e imprimir informe"]
+    P12["Consultar su propio PIAR en solo lectura"]
+  end
+  A --> P1
+  A --> P2
+  A --> P3
+  A --> P4
+  A --> P8
+  A --> P11
+  C --> P1
+  C --> P5
+  C --> P6
+  C --> P7
+  C --> P8
+  C --> P9
+  C --> P11
+  D --> P1
+  D --> P2
+  D --> P3
+  D --> P4
+  D --> P6
+  D --> P7
+  D --> P11
+  P --> P5
+  P --> P6
+  P --> P10
+  E --> P12

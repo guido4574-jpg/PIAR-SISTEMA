@@ -1,0 +1,38 @@
+erDiagram
+  direction LR
+  admin_account_audit {
+    bigint id_evento PK
+    int target_user_id FK
+    varchar operation
+  }
+  evento_seguridad {
+    bigint id_evento PK
+    varchar tipo
+    varchar resultado
+    int id_usuario
+  }
+  piar_auditoria {
+    bigint id_evento PK
+    int actor_user_id
+    varchar action
+    smallint http_status
+  }
+  limite_solicitudes {
+    char clave PK
+    int conteo
+    datetime expira_at
+  }
+  schema_migrations {
+    char version PK
+    char checksum
+  }
+  usuario {
+    int id_usuario PK
+  }
+  estudiante {
+    int id_estudiante PK
+  }
+  docente {
+    int id_docente PK
+  }
+  usuario |o--o{ admin_account_audit : "target_user_id"

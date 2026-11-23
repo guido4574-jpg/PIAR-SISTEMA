@@ -1,0 +1,29 @@
+flowchart LR
+  A(["Administrador"])
+  R(["Rector"])
+  C(["Coordinador"])
+  V(["Visitante"])
+  subgraph S["Sistema PIAR · gestión institucional"]
+    U1["Solicitar cuenta: 4 perfiles"]
+    U2["Aprobar o rechazar solicitudes"]
+    U3["Crear cuenta institucional"]
+    U4["Crear cuenta Estudiante vinculada"]
+    U5["Editar, desactivar y reactivar cuentas"]
+    U6["Gestionar estudiantes"]
+    U7["Gestionar docentes"]
+    U8["Consultar dashboard y reportes"]
+  end
+  V --> U1
+  A --> U2
+  A --> U3
+  A --> U4
+  A --> U5
+  A --> U6
+  R --> U6
+  C --> U6
+  A --> U7
+  R --> U7
+  C --> U7
+  A --> U8
+  R --> U8
+  C --> U8

@@ -1,0 +1,19 @@
+flowchart TB
+  subgraph Usuarios["Personas usuarias"]
+    A["Administrador"]
+    R["Rector"]
+    C["Coordinador"]
+    P["Psicólogo(a)"]
+    D["Docente"]
+    E["Estudiante"]
+  end
+  S["Sistema PIAR<br/>aplicación web"]
+  DB[("MySQL<br/>piar_produccion")]
+  CDN["jsDelivr<br/>Chart.js · Bootstrap Icons"]
+  MAIL["Correo: Resend o SMTP<br/>desactivado en producción"]
+  OIDC["Google · Microsoft · Apple<br/>implementado y oculto"]
+  Usuarios -->|"HTTPS"| S
+  Usuarios -.->|"recursos estáticos"| CDN
+  S -->|"SQL · red privada · TLS"| DB
+  S -.->|"API HTTPS · pendiente"| MAIL
+  S -.->|"OIDC · sin credenciales"| OIDC

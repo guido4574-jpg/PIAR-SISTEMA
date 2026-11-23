@@ -1,0 +1,33 @@
+flowchart TB
+  subgraph P["Capa de presentación · public/"]
+    H["index.html"]
+    APP["app.js · vistas por rol"]
+    MOD["piar-management.js · user-admin.js<br/>report-history.js · student-portal.js"]
+    EV["event-actions.js<br/>delegación de eventos compatible con la CSP"]
+    API["api.js · cliente HTTP con límite de 30 s"]
+  end
+  subgraph N["Capa de negocio · backend/"]
+    SRV["server.js · servidor HTTP nativo de Node.js<br/>cabeceras · control de origen · enrutamiento"]
+    AUTHZ["authorization.js · matriz de permisos por rol"]
+    AUTH["auth.js · sesiones · registro · contraseñas"]
+    DOM["piar-versioning · pedagogical-validation<br/>reports · student-portal · registration-approval"]
+    SEC["rate-limit-store · login-throttle<br/>security-events · admin-account-audit"]
+  end
+  subgraph D["Capa de persistencia"]
+    POOL["db.js · grupo de conexiones mysql2"]
+    MIG["migrations.js · run-migration.js"]
+    BD[("MySQL 8 · 28 tablas")]
+  end
+  H --> APP --> EV
+  APP --> API
+  MOD --> API
+  API -->|"fetch JSON · cookie de sesión"| SRV
+  SRV --> AUTHZ
+  SRV --> AUTH
+  SRV --> DOM
+  SRV --> SEC
+  AUTH --> POOL
+  DOM --> POOL
+  SEC --> POOL
+  POOL --> BD
+  MIG --> BD

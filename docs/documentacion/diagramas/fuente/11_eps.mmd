@@ -1,0 +1,20 @@
+flowchart TB
+  subgraph E["Entradas"]
+    E1["Datos del estudiante y su contexto"]
+    E2["Barreras observadas"]
+    E3["Diagnósticos e informes disponibles"]
+    E4["Acciones del personal: ajustes, DUA, seguimientos"]
+  end
+  subgraph P["Proceso · Sistema PIAR"]
+    P1["Validación y control de acceso por rol"]
+    P2["Registro trazable y versionado del PIAR"]
+    P3["Cálculo de avance e indicadores"]
+  end
+  subgraph S["Salidas"]
+    S1["PIAR consolidado e imprimible"]
+    S2["Informes persistentes"]
+    S3["Dashboard e indicadores"]
+    S4["Historial y auditoría"]
+  end
+  E --> P --> S
+  S -.->|"retroalimentación del seguimiento"| E
